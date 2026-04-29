@@ -12,9 +12,11 @@ public class UnityServicesBootstrap : MonoBehaviour
     public static bool IsInitialized { get; private set; }
     private static UnityServicesBootstrap instance;
 
+    //Gets called when game is initialized
+    //Waits for un
     private async void Awake()
     {
-        //Prevent duplicate bootstrap objects
+        // one bootstrap only
         if (instance != null && instance != this)
         {
             Destroy(gameObject);
@@ -22,35 +24,33 @@ public class UnityServicesBootstrap : MonoBehaviour
         }
 
         instance = this;
-
-        //Prevent GameObject from being destroyed when loading new scene
         DontDestroyOnLoad(gameObject);
 
         if (IsInitialized)
             return;
-        
+
+        await InitializeServices();
+    }
+
+    /// <summary>
+    /// Calls unity server to see if active, if not signed in, then anonymous sign in (default)
+    /// </summary>
+    private async System.Threading.Tasks.Task InitializeServices()
+    {
         try
         {
-            //Initialize all unity services used by project
             await UnityServices.InitializeAsync();
 
-            //If player is not signed in, sign in anonymously
-            //Lets dev use game with account sign in
             if (!AuthenticationService.Instance.IsSignedIn)
-            {
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
-            }
 
-            //Mark services are ready
             IsInitialized = true;
 
-            //Log success and show Unity Player ID in Console
-            Debug.Log($"Unity Services ready. Player ID: {AuthenticationService.Instance.PlayerId}");
+            Debug.Log("Unity Services ready. Player ID: " + AuthenticationService.Instance.PlayerId);
         }
-        catch (System.Exception ex)
+        catch (System.Exception e)
         {
-            //Log any initialization/sign-in errors
-            Debug.LogError("Failed to initialize Unity Services: " + ex.Message);
+            Debug.LogError("Failed to initialize Unity Services: " + e.Message);
         }
     }
 }

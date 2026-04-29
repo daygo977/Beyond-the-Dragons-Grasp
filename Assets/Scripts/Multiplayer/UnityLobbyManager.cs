@@ -1,7 +1,5 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Unity.Services.Authentication;
 using Unity.Services.Lobbies;
@@ -18,26 +16,41 @@ public class UnityLobbyManager : MonoBehaviour
     [SerializeField] private string lobbyRoomSceneName = "LobbyRoom";
 
     [Header("Lobby Settings")]
-    [SerializeField] private int maxPlayersPerLobby = 4;
+    [SerializeField] private int maxPlayers = 4;
 
-    [Header("Polling / Heartbeat")]
-    [SerializeField] private float lobbyPollIntervalSeconds = 2f;
-    [SerializeField] private float lobbyHeartbeatIntervalSeconds = 15f;
-
-    public Lobby CurrentLobby { get; private set; }
-    public List<Lobby> AvailableLobbies { get; private set; } = new();
-
-    public bool IsHost =>
-        CurrentLobby != null &&
-        AuthenticationService.Instance.IsSignedIn &&
-        CurrentLobby.HostId == AuthenticationService.Instance.PlayerId;
+    [Header("Timers")]
+    //Heartbeat ping to lobby to prevent it from deactivating from inactivity
+    [SerializeField] private float heartbeatTimeMax = 15f;
+    //Poll refreshes lobby info for all players
+    [SerializeField] private float lobbyPollTimeMax = 1.2f;
 
     public event Action<List<Lobby>> OnAvailableLobbiesChanged;
     public event Action<Lobby> OnCurrentLobbyChanged;
     public event Action OnLeftLobby;
 
-    private Coroutine pollLobbyCoroutine;
-    private Coroutine heartbeatCoroutine;
+    public List<Lobby> Lobbies { get; private set; } = new List<Lobby>();
+
+    public Lobby CurrentLobby => joinedLobby;
+
+    //Verifys if player is host, first checks to see if in lobby, then if player is signed in (should anonymous),
+    //then checks if host id matches player id to see if player is host
+    public bool IsHost
+    {
+        get
+        {
+            if (CurrentLobby == null) return false;
+            if (!AuthenticationService.Instance.IsSignedIn) return false;
+            return CurrentLobby.HostId == AuthenticationService.Instance.PlayerId;
+        }
+    }
+
+    private Lobby hostLobby;
+    private Lobby joinedLobby;
+
+    //Poll refreshes lobby info for all players
+    private float lobbyPollTimer;
+    //Heartbeat ping to lobby to prevent it from deactivating from inactivity
+    private float heartbeatTimer;
 
     private void Awake()
     {
@@ -52,7 +65,13 @@ public class UnityLobbyManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
-    public async Task<bool> CreateLobbyAsync(string playerName, string lobbyName, string password)
+    private void Update()
+    {
+        HandleLobbyHeartbeat();
+        HandleLobbyPoll();
+    }
+
+    public async Task<bool> CreateLobby(string playerName, string lobbyName, string password)
     {
         //signed in check
         if (!AuthenticationService.Instance.IsSignedIn)
@@ -63,23 +82,26 @@ public class UnityLobbyManager : MonoBehaviour
 
         try
         {
-            //host player data
-            var hostPlayer = new Player(
+            //Creates host player with input data
+            Player player = new Player(
                 id: AuthenticationService.Instance.PlayerId,
+                //Display Name that is typed by player
                 data: new Dictionary<string, PlayerDataObject>
                 {
                     {
+                        //Players in lobbies can see each othes names
                         "DisplayName",
                         new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, playerName)
                     }
-                });
+                }
+            );
 
-            //lobby create options
-            var options = new CreateLobbyOptions
+            //Lobby options, includes a public viewable lobby, potential password, player (who created lobby)
+            CreateLobbyOptions options = new CreateLobbyOptions
             {
                 IsPrivate = false,
                 Password = string.IsNullOrWhiteSpace(password) ? null : password,
-                Player = hostPlayer,
+                Player = player,
                 Data = new Dictionary<string, DataObject>
                 {
                     {
@@ -92,63 +114,65 @@ public class UnityLobbyManager : MonoBehaviour
                 }
             };
 
-            //create lobby
-            CurrentLobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayersPerLobby, options);
+            //Create lobby with previous variable above containing the input data provided by players
+            Lobby lobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayers, options);
 
-            //start polling and heartbeat
-            StartLobbyMaintenance();
+            SetCurrentLobby(lobby);
+            ResetTimers();
+            
+            //Checks to see if OnCurrentLo is null, if yes then throws null instead of exception, else it runs invoke
             OnCurrentLobbyChanged?.Invoke(CurrentLobby);
-
-            //move to room scene
             SceneManager.LoadScene(lobbyRoomSceneName);
+
             return true;
         }
         catch (LobbyServiceException e)
         {
-            Debug.LogError($"CreateLobbyAsync failed: {e}");
+            Debug.Log("Create Lobby failed... " + e);
             return false;
         }
     }
 
-    public async Task RefreshAvailableLobbiesAsync()
+    public async Task RefreshLobbies()
     {
         try
         {
-            //lobby browser query
-            var options = new QueryLobbiesOptions
+            //Will show list of available lobbies which have more than 0 open slots. If lobby is full, will not show in list
+            List<QueryFilter> filters = new List<QueryFilter>
             {
-                Count = 25,
-                Filters = new List<QueryFilter>
-                {
-                    new QueryFilter(
-                        field: QueryFilter.FieldOptions.AvailableSlots,
-                        op: QueryFilter.OpOptions.GT,
-                        value: "0"
-                    )
-                },
-                Order = new List<QueryOrder>
-                {
-                    new QueryOrder(
-                        asc: false,
-                        field: QueryOrder.FieldOptions.Created
-                    )
-                }
+                new QueryFilter(QueryFilter.FieldOptions.AvailableSlots, "0", QueryFilter.OpOptions.GT)
             };
 
-            //query lobbies
+            //Will show lobbies in order they were created in
+            List<QueryOrder> order = new List<QueryOrder>
+            {
+                new QueryOrder(false, QueryOrder.FieldOptions.Created)
+            };
+
+
+            //Lobbies will show 25 at a time, with previous filters set, and order set above.
+            QueryLobbiesOptions options = new QueryLobbiesOptions
+            {
+                Count = 25,
+                Filters = filters,
+                Order = order
+            };
+
             QueryResponse response = await LobbyService.Instance.QueryLobbiesAsync(options);
 
-            //update cached list
-            AvailableLobbies = response.Results ?? new List<Lobby>();
-            OnAvailableLobbiesChanged?.Invoke(AvailableLobbies);
+            //If response.Results is null, use new List<Lobby>()
+            Lobbies = response.Results ?? new List<Lobby>();
+
+            //Checks to see if OnAvai is null, if yes then throws null instead of exception, else it runs invoke
+            OnAvailableLobbiesChanged?.Invoke(Lobbies);
         }
         catch (LobbyServiceException e)
         {
-            Debug.LogError($"RefreshAvailableLobbiesAsync failed: {e}");
+            Debug.LogError("RefreshLobbies failed: " + e);
         }
     }
 
-    public async Task<bool> JoinLobbyAsync(string lobbyId, string playerName, string password = null)
+    public async Task<bool> JoinLobby(string lobbyId, string playerName, string password = null)
     {
         //signed in check
         if (!AuthenticationService.Instance.IsSignedIn)
@@ -159,103 +183,147 @@ public class UnityLobbyManager : MonoBehaviour
 
         try
         {
-            //join options
-            var options = new JoinLobbyByIdOptions
+            //Same lines present in CreateLobby()
+            Player player = new Player(
+                id: AuthenticationService.Instance.PlayerId,
+                data: new Dictionary<string, PlayerDataObject>
+                {
+                    {
+                        //Players in lobbies can see each othes names
+                        "DisplayName",
+                        new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, playerName)
+                    }
+                }
+            );
+
+            JoinLobbyByIdOptions options = new JoinLobbyByIdOptions
             {
                 Password = string.IsNullOrWhiteSpace(password) ? null : password,
-                Player = new Player(
-                    id: AuthenticationService.Instance.PlayerId,
-                    data: new Dictionary<string, PlayerDataObject>
-                    {
-                        {
-                            "DisplayName",
-                            new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, playerName)
-                        }
-                    })
+                Player = player
             };
 
-            //join lobby
-            CurrentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId, options);
+            Lobby lobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId, options);
 
-            //start polling and heartbeat if needed
-            StartLobbyMaintenance();
+            SetCurrentLobby(lobby);
+            ResetTimers();
+
             OnCurrentLobbyChanged?.Invoke(CurrentLobby);
-
-            //move to room scene
             SceneManager.LoadScene(lobbyRoomSceneName);
+
             return true;
         }
         catch (LobbyServiceException e)
         {
-            Debug.LogError($"JoinLobbyAsync failed: {e}");
+            Debug.LogError("JoinLobby failed... " + e);
             return false;
         }
     }
 
-    public async Task LeaveLobbyAsync()
+    public async Task LeaveLobby()
     {
-        //no lobby guard
-        if (CurrentLobby == null)
+        //not in a looby at the moment
+        if (joinedLobby == null)
             return;
 
         try
         {
-            //remove local player from lobby
-            await LobbyService.Instance.RemovePlayerAsync(CurrentLobby.Id, AuthenticationService.Instance.PlayerId);
+            //remove player (self) from lobby
+            await LobbyService.Instance.RemovePlayerAsync(joinedLobby.Id, AuthenticationService.Instance.PlayerId);
         }
         catch (LobbyServiceException e)
         {
-            Debug.LogError($"LeaveLobbyAsync failed: {e}");
+            Debug.LogError("LeaveLobby failed... " + e);
         }
         finally
         {
-            //clear local state
-            StopLobbyMaintenance();
-            CurrentLobby = null;
-
+            ClearLobby();
             OnLeftLobby?.Invoke();
             OnCurrentLobbyChanged?.Invoke(null);
 
-            //move back to browser scene
             SceneManager.LoadScene(lobbyBrowseSceneName);
         }
     }
 
-    public List<LobbyPlayerViewData> GetCurrentLobbyPlayers()
+    private void SetCurrentLobby(Lobby lobby)
     {
-        //build player list for room ui
-        var result = new List<LobbyPlayerViewData>();
+        joinedLobby = lobby;
 
-        if (CurrentLobby?.Players == null)
-            return result;
-
-        for (int i = 0; i < CurrentLobby.Players.Count; i++)
+        //If lobby is not null, you are signed in (anonymously) and your player id is the same as host id, then set lobby to host lobby
+        if (lobby != null && AuthenticationService.Instance.IsSignedIn && lobby.HostId == AuthenticationService.Instance.PlayerId)
         {
-            Player player = CurrentLobby.Players[i];
-            string displayName = player.Id;
-
-            //try display name first
-            if (player.Data != null &&
-                player.Data.TryGetValue("DisplayName", out PlayerDataObject displayNameData) &&
-                !string.IsNullOrWhiteSpace(displayNameData.Value))
-            {
-                displayName = displayNameData.Value;
-            }
-
-            result.Add(new LobbyPlayerViewData
-            {
-                PlayerId = player.Id,
-                DisplayName = displayName,
-                IsHost = player.Id == CurrentLobby.HostId,
-                JoinOrder = i
-            });
+            hostLobby = lobby;
         }
+        else
+        {
+            hostLobby = null;
+        }
+    }
 
-        //host first then join order
-        return result
-            .OrderByDescending(p => p.IsHost)
-            .ThenBy(p => p.JoinOrder)
-            .ToList();
+    /// <summary>
+    /// Clears parameters/fields to prevent any exceptions thrown, when leaving or disconnection from prev current lobby
+    /// </summary>
+    private void ClearLobby()
+    {
+        hostLobby = null;
+        joinedLobby = null;
+
+        lobbyPollTimer = 0f;
+        heartbeatTimer = 0f;
+    }
+
+    private void ResetTimers()
+    {
+        heartbeatTimer = heartbeatTimeMax;
+        lobbyPollTimer = lobbyPollTimeMax;
+    }
+
+    private async void HandleLobbyHeartbeat()
+    {
+        //only host sends heartbeats
+        if (hostLobby == null)
+            return;
+
+        heartbeatTimer -= Time.deltaTime;
+
+        if (heartbeatTimer > 0f)
+            return;
+
+        heartbeatTimer = heartbeatTimeMax;
+
+        try
+        {
+            await LobbyService.Instance.SendHeartbeatPingAsync(hostLobby.Id);
+        }
+        catch (LobbyServiceException e)
+        {
+            Debug.LogWarning("Heartbeat failed: " + e);
+        }
+    }
+
+    private async void HandleLobbyPoll()
+    {
+        //everyone in lobby will poll to update lobby room
+        if (joinedLobby == null)
+            return;
+
+        lobbyPollTimer -= Time.deltaTime;
+
+        if (lobbyPollTimer > 0f)
+            return;
+
+        lobbyPollTimer = lobbyPollTimeMax;
+
+        try
+        {
+            Lobby lobby = await LobbyService.Instance.GetLobbyAsync(joinedLobby.Id);
+
+            SetCurrentLobby(lobby);
+            OnCurrentLobbyChanged?.Invoke(CurrentLobby);
+        }
+        catch (LobbyServiceException e)
+        {
+            Debug.LogWarning("Lobby poll failed: " + e);
+        }
     }
 
     public bool LobbyRequiresPassword(Lobby lobby)
@@ -266,112 +334,6 @@ public class UnityLobbyManager : MonoBehaviour
 
         return lobby.Data.TryGetValue("HasPassword", out DataObject hasPasswordData) &&
                hasPasswordData.Value == "1";
-    }
-
-    private void StartLobbyMaintenance()
-    {
-        //restart polling and heartbeat
-        StopLobbyMaintenance();
-
-        pollLobbyCoroutine = StartCoroutine(PollLobbyCoroutine());
-        SyncHeartbeatState();
-    }
-
-    private void StopLobbyMaintenance()
-    {
-        //stop polling
-        if (pollLobbyCoroutine != null)
-        {
-            StopCoroutine(pollLobbyCoroutine);
-            pollLobbyCoroutine = null;
-        }
-
-        //stop heartbeat
-        if (heartbeatCoroutine != null)
-        {
-            StopCoroutine(heartbeatCoroutine);
-            heartbeatCoroutine = null;
-        }
-    }
-
-    private void SyncHeartbeatState()
-    {
-        //host keeps lobby alive
-        if (CurrentLobby != null && IsHost)
-        {
-            if (heartbeatCoroutine == null)
-                heartbeatCoroutine = StartCoroutine(HeartbeatLobbyCoroutine());
-        }
-        else
-        {
-            if (heartbeatCoroutine != null)
-            {
-                StopCoroutine(heartbeatCoroutine);
-                heartbeatCoroutine = null;
-            }
-        }
-    }
-
-    private IEnumerator PollLobbyCoroutine()
-    {
-        while (CurrentLobby != null)
-        {
-            //refresh lobby state
-            Task task = RefreshCurrentLobbyAsync();
-            yield return new WaitUntil(() => task.IsCompleted);
-
-            yield return new WaitForSeconds(lobbyPollIntervalSeconds);
-        }
-    }
-
-    private IEnumerator HeartbeatLobbyCoroutine()
-    {
-        while (CurrentLobby != null && IsHost)
-        {
-            //send heartbeat
-            Task task = SendHeartbeatAsync();
-            yield return new WaitUntil(() => task.IsCompleted);
-
-            yield return new WaitForSeconds(lobbyHeartbeatIntervalSeconds);
-        }
-
-        heartbeatCoroutine = null;
-    }
-
-    private async Task RefreshCurrentLobbyAsync()
-    {
-        if (CurrentLobby == null)
-            return;
-
-        try
-        {
-            //get latest lobby state
-            CurrentLobby = await LobbyService.Instance.GetLobbyAsync(CurrentLobby.Id);
-
-            //host may have changed
-            SyncHeartbeatState();
-
-            OnCurrentLobbyChanged?.Invoke(CurrentLobby);
-        }
-        catch (LobbyServiceException e)
-        {
-            Debug.LogWarning($"RefreshCurrentLobbyAsync failed: {e}");
-        }
-    }
-
-    private async Task SendHeartbeatAsync()
-    {
-        if (CurrentLobby == null || !IsHost)
-            return;
-
-        try
-        {
-            await LobbyService.Instance.SendHeartbeatPingAsync(CurrentLobby.Id);
-        }
-        catch (LobbyServiceException e)
-        {
-            Debug.LogWarning($"SendHeartbeatAsync failed: {e}");
-        }
     }
 
     [Serializable]
