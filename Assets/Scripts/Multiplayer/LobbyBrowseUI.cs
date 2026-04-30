@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using TMPro;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
@@ -12,9 +13,10 @@ public class LobbyBrowseUI : MonoBehaviour
     [SerializeField] private TMP_InputField passwordField;
 
     [Header("Buttons")]
-    [SerializeField] private Button backButton;
     [SerializeField] private Button createLobbyButton;
     [SerializeField] private Button refreshButton;
+    [SerializeField] private Button enterPasswordButton;
+    [SerializeField] private Button cancelPasswordButton;
 
     [Header("Lobby List")]
     [SerializeField] private Transform lobbyListContent;
@@ -22,89 +24,75 @@ public class LobbyBrowseUI : MonoBehaviour
 
     [Header("Password Join Popup")]
     [SerializeField] private GameObject passwordPanel;
-    [SerializeField] private TMP_InputField inputPasswordField;
-    [SerializeField] private Button enterPasswordButton;
-    [SerializeField] private Button cancelPasswordButton;
+    [SerializeField] private TMP_InputField joinPasswordField;
 
-    [Header("Settings")]
-    [SerializeField] private string playerNamePrefsKey = "PLAYER_NAME";
+    [Header("Save Data")]
+    [SerializeField] private string playerNameKey = "PLAYER_NAME";
 
-    private Lobby pendingLobbyToJoin;
+    private Lobby selectedLobby;
 
     private async void Start()
     {
-        //button listeners
-        if (backButton != null)
-            backButton.onClick.AddListener(OnBackPressed);
+        //Wait until Unity Services is ready
+        while (!UnityServicesBootstrap.IsInitialized)
+            await Task.Yield();
 
+        //Hooks up buttons to their corresponding functions
         if (createLobbyButton != null)
-            createLobbyButton.onClick.AddListener(OnCreateLobbyPressed);
+            createLobbyButton.onClick.AddListener(CreateLobby);
 
         if (refreshButton != null)
-            refreshButton.onClick.AddListener(OnRefreshPressed);
+            refreshButton.onClick.AddListener(RefreshLobbies);
 
         if (enterPasswordButton != null)
-            enterPasswordButton.onClick.AddListener(OnEnterPasswordPressed);
+            enterPasswordButton.onClick.AddListener(JoinWithPassword);
 
         if (cancelPasswordButton != null)
-            cancelPasswordButton.onClick.AddListener(OnCancelPasswordPressed);
+            cancelPasswordButton.onClick.AddListener(ClosePasswordPanel);
 
-        //popup starts hidden
-        if (passwordPanel != null)
-            passwordPanel.SetActive(false);
+        //Password panel starts deactivated
+        ClosePasswordPanel();
+        //Load saved player name from previous session
+        LoadPlayerName();
 
-        //restore saved player name
-        LoadSavedPlayerName();
-
-        //subscribe to real lobby list updates
-        if (UnityLobbyManager.Instance != null)
-        {
-            UnityLobbyManager.Instance.OnAvailableLobbiesChanged += RebuildLobbyList;
-            await UnityLobbyManager.Instance.RefreshAvailableLobbiesAsync();
-        }
-        else
+        if (UnityLobbyManager.Instance == null)
         {
             Debug.LogWarning("UnityLobbyManager not found");
+            return;
         }
+
+        UnityLobbyManager.Instance.OnAvailableLobbiesChanged += ShowLobbies;
+        await UnityLobbyManager.Instance.RefreshLobbies();
     }
 
     private void OnDestroy()
     {
-        //remove button listeners
-        if (backButton != null)
-            backButton.onClick.RemoveListener(OnBackPressed);
 
+        //Removes button functions
         if (createLobbyButton != null)
-            createLobbyButton.onClick.RemoveListener(OnCreateLobbyPressed);
+            createLobbyButton.onClick.RemoveListener(CreateLobby);
 
         if (refreshButton != null)
-            refreshButton.onClick.RemoveListener(OnRefreshPressed);
+            refreshButton.onClick.RemoveListener(RefreshLobbies);
 
         if (enterPasswordButton != null)
-            enterPasswordButton.onClick.RemoveListener(OnEnterPasswordPressed);
+            enterPasswordButton.onClick.RemoveListener(JoinWithPassword);
 
         if (cancelPasswordButton != null)
-            cancelPasswordButton.onClick.RemoveListener(OnCancelPasswordPressed);
+            cancelPasswordButton.onClick.RemoveListener(ClosePasswordPanel);
 
-        //unsubscribe from lobby updates
         if (UnityLobbyManager.Instance != null)
-            UnityLobbyManager.Instance.OnAvailableLobbiesChanged -= RebuildLobbyList;
+            UnityLobbyManager.Instance.OnAvailableLobbiesChanged -= ShowLobbies;
     }
 
-    private void OnBackPressed()
+    private async void CreateLobby()
     {
-        //placeholder until main menu exists
-        Debug.Log("Back pressed");
-    }
-
-    private async void OnCreateLobbyPressed()
-    {
-        //read inputs
+        //Takes input fields from players
         string playerName = playerNameField != null ? playerNameField.text.Trim() : "";
         string lobbyName = lobbyNameField != null ? lobbyNameField.text.Trim() : "";
         string password = passwordField != null ? passwordField.text.Trim() : "";
 
-        //basic validation
+        //Checks to see if required input fields are not blank
         if (string.IsNullOrWhiteSpace(playerName))
         {
             Debug.LogWarning("Player name is required");
@@ -117,34 +105,24 @@ public class LobbyBrowseUI : MonoBehaviour
             return;
         }
 
-        //save local name
         SavePlayerName(playerName);
 
-        //create real lobby
+        //Sends info to CreateLobby function in UnityLobbyManager
         if (UnityLobbyManager.Instance != null)
-            await UnityLobbyManager.Instance.CreateLobbyAsync(playerName, lobbyName, password);
+            await UnityLobbyManager.Instance.CreateLobby(playerName, lobbyName, password);
     }
 
-    private async void OnRefreshPressed()
+    private async void RefreshLobbies()
     {
-        //refresh real lobby list
         if (UnityLobbyManager.Instance != null)
-            await UnityLobbyManager.Instance.RefreshAvailableLobbiesAsync();
+            await UnityLobbyManager.Instance.RefreshLobbies();
     }
 
-    private async void OnEnterPasswordPressed()
+    private async void SelectLobby(Lobby lobby)
     {
-        //guard pending lobby
-        if (pendingLobbyToJoin == null)
-        {
-            ClosePasswordPanel();
-            return;
-        }
-
-        //read name and entered password
+        //Takes only player name field
         string playerName = playerNameField != null ? playerNameField.text.Trim() : "";
-        string enteredPassword = inputPasswordField != null ? inputPasswordField.text.Trim() : "";
-
+        //Checks player name field is not blank
         if (string.IsNullOrWhiteSpace(playerName))
         {
             Debug.LogWarning("Player name is required before joining");
@@ -153,148 +131,118 @@ public class LobbyBrowseUI : MonoBehaviour
 
         SavePlayerName(playerName);
 
-        //try join protected lobby
-        if (UnityLobbyManager.Instance != null)
-        {
-            bool joined = await UnityLobbyManager.Instance.JoinLobbyAsync(
-                pendingLobbyToJoin.Id,
-                playerName,
-                enteredPassword
-            );
-
-            if (joined)
-                ClosePasswordPanel();
-        }
-    }
-
-    private void OnCancelPasswordPressed()
-    {
-        //close password popup
-        ClosePasswordPanel();
-    }
-
-    private void OpenPasswordPanel(Lobby lobby)
-    {
-        //set pending lobby
-        pendingLobbyToJoin = lobby;
-
-        //clear old password
-        if (inputPasswordField != null)
-            inputPasswordField.text = "";
-
-        //show popup
-        if (passwordPanel != null)
-            passwordPanel.SetActive(true);
-    }
-
-    private void ClosePasswordPanel()
-    {
-        //clear pending lobby
-        pendingLobbyToJoin = null;
-
-        //clear input
-        if (inputPasswordField != null)
-            inputPasswordField.text = "";
-
-        //hide popup
-        if (passwordPanel != null)
-            passwordPanel.SetActive(false);
-    }
-
-    private void SavePlayerName(string playerName)
-    {
-        //save local name
-        PlayerPrefs.SetString(playerNamePrefsKey, playerName);
-        PlayerPrefs.Save();
-    }
-
-    private void LoadSavedPlayerName()
-    {
-        //load local name
-        if (playerNameField != null && PlayerPrefs.HasKey(playerNamePrefsKey))
-            playerNameField.text = PlayerPrefs.GetString(playerNamePrefsKey);
-    }
-
-    private void RebuildLobbyList(List<Lobby> lobbies)
-    {
-        //clear old rows
-        ClearLobbyList();
-
-        if (lobbies == null)
-            return;
-
-        //build rows from real lobby data
-        foreach (Lobby lobby in lobbies)
-        {
-            CreateRoomEntry(lobby);
-        }
-    }
-
-    private void ClearLobbyList()
-    {
-        //guard content ref
-        if (lobbyListContent == null)
-        {
-            Debug.LogWarning("LobbyListContent is missing");
-            return;
-        }
-
-        //destroy old entries
-        for (int i = lobbyListContent.childCount - 1; i >= 0; i--)
-        {
-            Destroy(lobbyListContent.GetChild(i).gameObject);
-        }
-    }
-
-    private void CreateRoomEntry(Lobby lobby)
-    {
-        //guard refs
-        if (roomEntryPrefab == null || lobbyListContent == null)
-        {
-            Debug.LogWarning("RoomEntryPrefab or LobbyListContent is missing");
-            return;
-        }
-
-        //spawn row
-        GameObject entry = Instantiate(roomEntryPrefab, lobbyListContent);
-
-        //assign room name and click action
-        LobbyRoomEntryUI entryUI = entry.GetComponent<LobbyRoomEntryUI>();
-        if (entryUI != null)
-        {
-            entryUI.Setup(lobby.Name, () => OnJoinRoomPressed(lobby));
-        }
-        else
-        {
-            Debug.LogWarning("Room entry prefab is missing LobbyRoomEntryUI");
-        }
-    }
-
-    private async void OnJoinRoomPressed(Lobby lobby)
-    {
-        //read player name
-        string playerName = playerNameField != null ? playerNameField.text.Trim() : "";
-
-        if (string.IsNullOrWhiteSpace(playerName))
-        {
-            Debug.LogWarning("Player name is required before joining");
-            return;
-        }
-
-        SavePlayerName(playerName);
-
-        //guard manager
         if (UnityLobbyManager.Instance == null)
             return;
 
-        //open popup for protected lobbies
+        
+        //If selected lobby you want to join needs password, opens password planel
         if (UnityLobbyManager.Instance.LobbyRequiresPassword(lobby))
         {
             OpenPasswordPanel(lobby);
             return;
         }
 
-        //join open lobby
-        await UnityLobbyManager.Instance.JoinLobbyAsync(lobby.Id, playerName);
+        //Joins selected lobby
+        await UnityLobbyManager.Instance.JoinLobby(lobby.Id, playerName);
+    }
+
+    private async void JoinWithPassword()
+    {
+        //safe guard
+        if (selectedLobby == null)
+        {
+            ClosePasswordPanel();
+            return;
+        }
+
+        //Takes player input fields, only name and password you input to join lobby
+        string playerName = playerNameField != null ? playerNameField.text.Trim() : "";
+        string password = joinPasswordField != null ? joinPasswordField.text.Trim() : "";
+        //Checks to see if name is not blank
+        if (string.IsNullOrWhiteSpace(playerName))
+        {
+            Debug.LogWarning("Player name is required before joining");
+            return;
+        }
+
+        SavePlayerName(playerName);
+
+        if (UnityLobbyManager.Instance == null)
+            return;
+
+        //Sends info to function in UnityLobbyManager, and if password was correct, true, else, false
+        bool joined = await UnityLobbyManager.Instance.JoinLobby(selectedLobby.Id, playerName, password);
+
+        //If password true, then password panel will close
+        if (joined)
+            ClosePasswordPanel();
+    }
+
+    private void OpenPasswordPanel(Lobby lobby)
+    {
+        //Grabs lobby to grab correct password for lobby
+        selectedLobby = lobby;
+
+        //Make sure input has no prior password in field when it opens
+        if (joinPasswordField != null)
+            joinPasswordField.text = "";
+
+        if (passwordPanel != null)
+            passwordPanel.SetActive(true);
+    }
+
+    private void ClosePasswordPanel()
+    {
+        //Clears selected lobby
+        selectedLobby = null;
+
+        //Clears field when closing panel
+        if (joinPasswordField != null)
+            joinPasswordField.text = "";
+
+        if (passwordPanel != null)
+            passwordPanel.SetActive(false);
+    }
+
+    private void ShowLobbies(List<Lobby> lobbies)
+    {
+        //Safe guard
+        if (lobbyListContent == null)
+        {
+            Debug.LogWarning("LobbyListContent is missing");
+            return;
+        }
+
+        //Remove old lobbies (rows) in scroll view
+        for (int i = lobbyListContent.childCount - 1; i >= 0; i--)
+            Destroy(lobbyListContent.GetChild(i).gameObject);
+        //Safe guard when no lobbies
+        if (lobbies == null)
+            return;
+
+        //Create one row (prefab) per lobby
+        foreach (Lobby lobby in lobbies)
+        {
+            GameObject row = Instantiate(roomEntryPrefab, lobbyListContent);
+            LobbyRoomEntryUI rowUI = row.GetComponent<LobbyRoomEntryUI>();
+
+            //If not null, setup the lobby name and click action for prefab
+            if (rowUI != null)
+                rowUI.Setup(lobby.Name, () => SelectLobby(lobby));
+        }
+    }
+
+    private void SavePlayerName(string playerName)
+    {
+        //Save player name locally
+        PlayerPrefs.SetString(playerNameKey, playerName);
+        PlayerPrefs.Save();
+    }
+
+    private void LoadPlayerName()
+    {
+        //Load saved name into input field
+        if (playerNameField != null && PlayerPrefs.HasKey(playerNameKey))
+            playerNameField.text = PlayerPrefs.GetString(playerNameKey);
     }
 }
