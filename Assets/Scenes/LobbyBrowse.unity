@@ -176,7 +176,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Button
+  m_text: Cancel
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -4441,7 +4441,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1102428727532551543, guid: 2abda124c5736594eb40f794a18ee9dc, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0.00070278574
+      value: 0.0000067757633
       objectReference: {fileID: 0}
     - target: {fileID: 1277199353212778547, guid: 2abda124c5736594eb40f794a18ee9dc, type: 3}
       propertyPath: m_Pivot.x
