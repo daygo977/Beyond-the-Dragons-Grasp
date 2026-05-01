@@ -9,18 +9,28 @@ using UnityEngine.UI;
 /// </summary>
 public class LobbyRoomEntryUI : MonoBehaviour
 {
+    [Header("UI")]
     [SerializeField] private TMP_Text lobbyNameText;
     [SerializeField] private Button joinButton;
 
-    public void Setup(string lobbyName, UnityAction onJoinClicked)
+    public void Setup(string lobbyName, UnityAction onClick)
+    {
+        SetLobbyName(lobbyName);
+        SetJoinButton(onClick);
+    }
+
+    private void SetLobbyName(string lobbyName)
     {
         if (lobbyNameText != null)
             lobbyNameText.text = lobbyName;
+    }
 
-        if (joinButton != null)
-        {
-            joinButton.onClick.RemoveAllListeners();
-            joinButton.onClick.AddListener(onJoinClicked);
-        }
+    private void SetJoinButton(UnityAction onClick)
+    {
+        if (joinButton == null)
+            return;
+
+        joinButton.onClick.RemoveAllListeners();
+        joinButton.onClick.AddListener(onClick);
     }
 }

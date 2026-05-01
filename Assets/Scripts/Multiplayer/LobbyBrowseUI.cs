@@ -85,6 +85,7 @@ public class LobbyBrowseUI : MonoBehaviour
             UnityLobbyManager.Instance.OnAvailableLobbiesChanged -= ShowLobbies;
     }
 
+    //Create lobby from input fields
     private async void CreateLobby()
     {
         //Takes input fields from players
@@ -112,12 +113,14 @@ public class LobbyBrowseUI : MonoBehaviour
             await UnityLobbyManager.Instance.CreateLobby(playerName, lobbyName, password);
     }
 
+    //Refresh lobby browser list
     private async void RefreshLobbies()
     {
         if (UnityLobbyManager.Instance != null)
             await UnityLobbyManager.Instance.RefreshLobbies();
     }
 
+    //Join selected lobby or open password panel
     private async void SelectLobby(Lobby lobby)
     {
         //Takes only player name field
@@ -146,6 +149,7 @@ public class LobbyBrowseUI : MonoBehaviour
         await UnityLobbyManager.Instance.JoinLobby(lobby.Id, playerName);
     }
 
+    //Join selected password-protected lobby
     private async void JoinWithPassword()
     {
         //safe guard
@@ -178,6 +182,7 @@ public class LobbyBrowseUI : MonoBehaviour
             ClosePasswordPanel();
     }
 
+    //Activate password popup for selected lobby
     private void OpenPasswordPanel(Lobby lobby)
     {
         //Grabs lobby to grab correct password for lobby
@@ -191,6 +196,7 @@ public class LobbyBrowseUI : MonoBehaviour
             passwordPanel.SetActive(true);
     }
 
+    //Deactivate password popup and clear data
     private void ClosePasswordPanel()
     {
         //Clears selected lobby
@@ -204,6 +210,7 @@ public class LobbyBrowseUI : MonoBehaviour
             passwordPanel.SetActive(false);
     }
 
+    //Rebuild lobby rows in scroll list
     private void ShowLobbies(List<Lobby> lobbies)
     {
         //Safe guard

@@ -2562,16 +2562,15 @@ MonoBehaviour:
   playerNameField: {fileID: 63911995}
   lobbyNameField: {fileID: 1903377992}
   passwordField: {fileID: 1543592194}
-  backButton: {fileID: 747331777}
   createLobbyButton: {fileID: 2110090152}
   refreshButton: {fileID: 5847560053559602429}
+  enterPasswordButton: {fileID: 1670774521}
+  cancelPasswordButton: {fileID: 342197029}
   lobbyListContent: {fileID: 5847560053559602428}
   roomEntryPrefab: {fileID: 69413120201038880, guid: b32f513bcb2c0524e8b87d03c4f3cc29, type: 3}
   passwordPanel: {fileID: 1171443425}
-  inputPasswordField: {fileID: 600832979}
-  enterPasswordButton: {fileID: 1670774521}
-  cancelPasswordButton: {fileID: 342197029}
-  playerNamePrefsKey: PLAYER_NAME
+  joinPasswordField: {fileID: 600832979}
+  playerNameKey: PLAYER_NAME
 --- !u!4 &1446043907
 Transform:
   m_ObjectHideFlags: 0
@@ -3695,9 +3694,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   lobbyBrowseSceneName: LobbyBrowse
   lobbyRoomSceneName: LobbyRoom
-  maxPlayersPerLobby: 4
-  lobbyPollIntervalSeconds: 2
-  lobbyHeartbeatIntervalSeconds: 15
+  maxPlayers: 4
+  heartbeatTimeMax: 15
+  lobbyPollTimeMax: 1.2
 --- !u!4 &1823384221
 Transform:
   m_ObjectHideFlags: 0
@@ -4442,7 +4441,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1102428727532551543, guid: 2abda124c5736594eb40f794a18ee9dc, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0.000060969112
+      value: 0.00070278574
       objectReference: {fileID: 0}
     - target: {fileID: 1277199353212778547, guid: 2abda124c5736594eb40f794a18ee9dc, type: 3}
       propertyPath: m_Pivot.x

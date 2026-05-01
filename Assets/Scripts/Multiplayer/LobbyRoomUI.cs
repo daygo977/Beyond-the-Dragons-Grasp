@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
@@ -14,8 +12,7 @@ public class LobbyRoomUI : MonoBehaviour
     [SerializeField] private Button cancelLeaveButton;
 
     [Header("Texts")]
-    [SerializeField] private TMP_Text gameStartCountdownText;
-    [SerializeField] private TMP_Text autoRefreshText;
+    [SerializeField] private TMP_Text countdownText;
 
     [Header("Popup")]
     [SerializeField] private GameObject leaveConfirmScreen;
@@ -26,290 +23,231 @@ public class LobbyRoomUI : MonoBehaviour
 
     [Header("Settings")]
     [SerializeField] private int maxPlayers = 4;
-    [SerializeField] private float autoRefreshInterval = 10f;
 
-    private bool isCountdownRunning = false;
-    private Coroutine countdownCoroutine;
-    private Coroutine autoRefreshCoroutine;
+    
 
     private void Start()
     {
         //button listeners
         if (leaveLobbyButton != null)
-            leaveLobbyButton.onClick.AddListener(OnLeaveLobbyPressed);
+            leaveLobbyButton.onClick.AddListener(OpenLeavePanel);
 
         if (startGameButton != null)
-            startGameButton.onClick.AddListener(OnStartOrCancelPressed);
+            startGameButton.onClick.AddListener(PressStartButton);
 
         if (confirmLeaveButton != null)
-            confirmLeaveButton.onClick.AddListener(OnConfirmLeavePressed);
+            confirmLeaveButton.onClick.AddListener(LeaveLobby);
 
         if (cancelLeaveButton != null)
-            cancelLeaveButton.onClick.AddListener(OnCancelLeavePressed);
+            cancelLeaveButton.onClick.AddListener(CloseLeavePanel);
 
-        //popup starts hidden
-        if (leaveConfirmScreen != null)
-            leaveConfirmScreen.SetActive(false);
+        //Confirm leave panel starts deactivated
+        CloseLeavePanel();
 
-        //countdown text starts hidden
-        if (gameStartCountdownText != null)
-            gameStartCountdownText.gameObject.SetActive(false);
+        //Countdown starts deactivated
+        HideCountdown();
 
-        //set initial start button state
-        RefreshStartButtonState();
-
-        //subscribe to lobby updates
-        if (UnityLobbyManager.Instance != null)
-        {
-            UnityLobbyManager.Instance.OnCurrentLobbyChanged += HandleLobbyChanged;
-            HandleLobbyChanged(UnityLobbyManager.Instance.CurrentLobby);
-        }
-        else
+        if (UnityLobbyManager.Instance == null)
         {
             Debug.LogWarning("UnityLobbyManager not found");
+            return;
         }
 
-        //visual auto refresh text
-        autoRefreshCoroutine = StartCoroutine(AutoRefreshTextRoutine());
+        //Subscribe to lobby updates
+        UnityLobbyManager.Instance.OnCurrentLobbyChanged += RefreshRoom;
+
+        //CurrentLobby is joinedLobby in UnityLobbyManager
+        //Refresh room at start
+        RefreshRoom(UnityLobbyManager.Instance.CurrentLobby);
+    }
+
+    //Update shared countdown text
+    private void Update()
+    {
+        UpdateCountdown();
     }
 
     private void OnDestroy()
     {
         //remove button listeners
         if (leaveLobbyButton != null)
-            leaveLobbyButton.onClick.RemoveListener(OnLeaveLobbyPressed);
+            leaveLobbyButton.onClick.RemoveListener(OpenLeavePanel);
 
         if (startGameButton != null)
-            startGameButton.onClick.RemoveListener(OnStartOrCancelPressed);
+            startGameButton.onClick.RemoveListener(PressStartButton);
 
         if (confirmLeaveButton != null)
-            confirmLeaveButton.onClick.RemoveListener(OnConfirmLeavePressed);
+            confirmLeaveButton.onClick.RemoveListener(LeaveLobby);
 
         if (cancelLeaveButton != null)
-            cancelLeaveButton.onClick.RemoveListener(OnCancelLeavePressed);
-
-        //unsubscribe from lobby updates
+            cancelLeaveButton.onClick.RemoveListener(CloseLeavePanel);
+        
+        //Unsubscribe to lobby updates
         if (UnityLobbyManager.Instance != null)
-            UnityLobbyManager.Instance.OnCurrentLobbyChanged -= HandleLobbyChanged;
-
-        //stop coroutines
-        if (countdownCoroutine != null)
-            StopCoroutine(countdownCoroutine);
-
-        if (autoRefreshCoroutine != null)
-            StopCoroutine(autoRefreshCoroutine);
+            UnityLobbyManager.Instance.OnCurrentLobbyChanged -= RefreshRoom;
     }
 
-    private void HandleLobbyChanged(Lobby lobby)
+    //Refresh room UI when lobby data changes
+    private void RefreshRoom(Lobby lobby)
     {
-        //clear old player rows
-        ClearPlayerList();
-
+        //Clear old player rows
+        ClearPlayerRows();
+        
         if (UnityLobbyManager.Instance == null || lobby == null)
             return;
+        
+        UpdateStartButton();
+        ShowPlayers(lobby);
+    }
 
-        //update host/client button state
-        RefreshStartButtonState();
+    //Spawn player rows from current lobby players
+    private void ShowPlayers(Lobby lobby)
+    {
+        if (lobby.Players == null)
+            return;
 
-        //get real players from manager
-        List<UnityLobbyManager.LobbyPlayerViewData> players =
-            UnityLobbyManager.Instance.GetCurrentLobbyPlayers();
+        int playerCount = Mathf.Min(lobby.Players.Count, maxPlayers);
 
-        int count = Mathf.Min(players.Count, maxPlayers);
-
-        //rebuild player list
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < playerCount; i++)
         {
-            CreatePlayerEntry(players[i].DisplayName);
+            Player player = lobby.Players[i];
+            string playerName = player.Id;
+
+            if (player.Data != null &&
+                player.Data.TryGetValue("DisplayName", out PlayerDataObject nameData) &&
+                !string.IsNullOrWhiteSpace(nameData.Value))
+            {
+                playerName = nameData.Value;
+            }
+
+            CreatePlayerRow(playerName);
         }
     }
 
-    private void RefreshStartButtonState()
+    //Update start button state for host and clients
+    private void UpdateStartButton()
     {
         if (startGameButton == null)
             return;
 
-        //only host can use start/cancel button
         bool isHost = UnityLobbyManager.Instance != null && UnityLobbyManager.Instance.IsHost;
+        bool countdownActive = UnityLobbyManager.Instance != null && UnityLobbyManager.Instance.IsCountdownActive();
+
+        // Only host can press start or cancel
         startGameButton.interactable = isHost;
 
-        //update button text
         TMP_Text buttonText = startGameButton.GetComponentInChildren<TMP_Text>();
         if (buttonText != null)
-            buttonText.text = isCountdownRunning ? "Cancel" : "Start Game";
+            buttonText.text = countdownActive ? "Cancel" : "Start Game";
     }
 
-    private void OnLeaveLobbyPressed()
+    //Show shared countdown for all players
+    private void UpdateCountdown()
     {
-        //show leave confirm popup
+        if (UnityLobbyManager.Instance == null)
+            return;
+
+        if (!UnityLobbyManager.Instance.IsCountdownActive())
+        {
+            HideCountdown();
+            return;
+        }
+
+        long endTime = UnityLobbyManager.Instance.GetCountdownEndTime();
+        long now = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        long secondsLeft = endTime - now;
+
+        if (countdownText != null)
+            countdownText.gameObject.SetActive(true);
+
+        if (secondsLeft > 0)
+        {
+            if (countdownText != null)
+                countdownText.text = "Starting Game in " + secondsLeft + "...";
+        }
+        else
+        {
+            if (countdownText != null)
+                countdownText.text = "Starting Game...";
+        }
+
+        UpdateStartButton();
+    }
+
+    //Open leave confirmation panel
+    private void OpenLeavePanel()
+    {
         if (leaveConfirmScreen != null)
             leaveConfirmScreen.SetActive(true);
     }
 
-    private void OnCancelLeavePressed()
+    //Close leave confirmation panel
+    private void CloseLeavePanel()
     {
-        //hide leave confirm popup
         if (leaveConfirmScreen != null)
             leaveConfirmScreen.SetActive(false);
     }
 
-    private async void OnConfirmLeavePressed()
+    //Leave current lobby
+    private async void LeaveLobby()
     {
-        //leave real lobby
         if (UnityLobbyManager.Instance != null)
-            await UnityLobbyManager.Instance.LeaveLobbyAsync();
+            await UnityLobbyManager.Instance.LeaveLobby();
     }
 
-    private void OnStartOrCancelPressed()
+    //Host starts or cancels shared countdown
+    private async void PressStartButton()
     {
-        //host only
         if (UnityLobbyManager.Instance == null || !UnityLobbyManager.Instance.IsHost)
         {
             Debug.Log("Only host can start or cancel countdown");
             return;
         }
 
-        //toggle countdown
-        if (isCountdownRunning)
-            CancelStartCountdown();
+        if (UnityLobbyManager.Instance.IsCountdownActive())
+            await UnityLobbyManager.Instance.CancelGameCountdown();
         else
-            StartCountdown();
-    }
+            await UnityLobbyManager.Instance.StartGameCountdown(10);
 
-    private void StartCountdown()
+        UpdateStartButton();
+}
+
+    //Deactivate countdown text
+    private void HideCountdown()
     {
-        //stop old countdown if somehow still active
-        if (countdownCoroutine != null)
-            StopCoroutine(countdownCoroutine);
-
-        isCountdownRunning = true;
-        RefreshStartButtonState();
-
-        //show countdown text
-        if (gameStartCountdownText != null)
-            gameStartCountdownText.gameObject.SetActive(true);
-
-        //start countdown coroutine
-        countdownCoroutine = StartCoroutine(StartGameCountdownRoutine());
-    }
-
-    private void CancelStartCountdown()
-    {
-        //stop active countdown
-        if (countdownCoroutine != null)
+        if (countdownText != null)
         {
-            StopCoroutine(countdownCoroutine);
-            countdownCoroutine = null;
-        }
-
-        isCountdownRunning = false;
-
-        //clear countdown text
-        if (gameStartCountdownText != null)
-        {
-            gameStartCountdownText.text = "";
-            gameStartCountdownText.gameObject.SetActive(false);
-        }
-
-        RefreshStartButtonState();
-        Debug.Log("Game start countdown cancelled");
-    }
-
-    private IEnumerator StartGameCountdownRoutine()
-    {
-        //10 second countdown
-        for (int seconds = 10; seconds > 0; seconds--)
-        {
-            if (gameStartCountdownText != null)
-                gameStartCountdownText.text = $"Starting Game in {seconds}...";
-
-            yield return new WaitForSeconds(1f);
-        }
-
-        //final start message
-        if (gameStartCountdownText != null)
-            gameStartCountdownText.text = "Starting Game...";
-
-        Debug.Log("Game would start here");
-
-        /*
-         * Later hook real game start here
-         * Could also scale difficulty based on player count
-         * Example:
-         * - more players = stronger enemies
-         * - maybe lower player health a bit
-         */
-
-        yield return new WaitForSeconds(1f);
-
-        //reset countdown state
-        isCountdownRunning = false;
-        countdownCoroutine = null;
-
-        if (gameStartCountdownText != null)
-        {
-            gameStartCountdownText.text = "";
-            gameStartCountdownText.gameObject.SetActive(false);
-        }
-
-        RefreshStartButtonState();
-    }
-
-    private IEnumerator AutoRefreshTextRoutine()
-    {
-        while (true)
-        {
-            float timer = autoRefreshInterval;
-
-            //visual timer text
-            while (timer > 0f)
-            {
-                if (autoRefreshText != null)
-                    autoRefreshText.text = $"Auto-Refresh: {Mathf.CeilToInt(timer)}s";
-
-                timer -= Time.deltaTime;
-                yield return null;
-            }
+            countdownText.text = "";
+            countdownText.gameObject.SetActive(false);
         }
     }
 
-    private void ClearPlayerList()
+    //Remove old player rows from scroll list
+    private void ClearPlayerRows()
     {
-        //guard content ref
         if (playerListContent == null)
         {
             Debug.LogWarning("PlayerListContent is missing");
             return;
         }
 
-        //destroy old rows
         for (int i = playerListContent.childCount - 1; i >= 0; i--)
-        {
             Destroy(playerListContent.GetChild(i).gameObject);
-        }
     }
 
-    private void CreatePlayerEntry(string playerName)
+    //Create one player row
+    private void CreatePlayerRow(string playerName)
     {
-        //guard refs
         if (playerPanelPrefab == null || playerListContent == null)
         {
             Debug.LogWarning("PlayerPanelPrefab or PlayerListContent is missing");
             return;
         }
 
-        //spawn player row
-        GameObject entry = Instantiate(playerPanelPrefab, playerListContent);
+        GameObject row = Instantiate(playerPanelPrefab, playerListContent);
+        LobbyPlayerEntryUI rowUI = row.GetComponent<LobbyPlayerEntryUI>();
 
-        //assign player name
-        LobbyPlayerEntryUI entryUI = entry.GetComponent<LobbyPlayerEntryUI>();
-        if (entryUI != null)
-        {
-            entryUI.Setup(playerName);
-        }
-        else
-        {
-            Debug.LogWarning("Player panel prefab is missing LobbyPlayerEntryUI");
-        }
+        if (rowUI != null)
+            rowUI.Setup(playerName);
     }
 }

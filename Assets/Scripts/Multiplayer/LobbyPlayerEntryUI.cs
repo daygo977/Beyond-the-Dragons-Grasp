@@ -6,9 +6,15 @@ using UnityEngine;
 /// </summary>
 public class LobbyPlayerEntryUI : MonoBehaviour
 {
+    [Header("UI")]
     [SerializeField] private TMP_Text playerNameText;
 
     public void Setup(string playerName)
+    {
+        SetPlayerName(playerName);
+    }
+
+    private void SetPlayerName(string playerName)
     {
         if (playerNameText != null)
             playerNameText.text = playerName;

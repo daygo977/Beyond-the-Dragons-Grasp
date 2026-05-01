@@ -52,6 +52,9 @@ public class UnityLobbyManager : MonoBehaviour
     //Heartbeat ping to lobby to prevent it from deactivating from inactivity
     private float heartbeatTimer;
 
+    private const string countdownActiveKey = "CountdownActive";
+    private const string countdownEndTimeKey = "CountdownEndTime";
+
     private void Awake()
     {
         //singleton
@@ -65,6 +68,7 @@ public class UnityLobbyManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
+    //Run heartbeat for host and poll joined lobby for LobbyRoom updates, not LobbyBrowse
     private void Update()
     {
         HandleLobbyHeartbeat();
@@ -227,8 +231,12 @@ public class UnityLobbyManager : MonoBehaviour
 
         try
         {
+            //migrate host id to first joined player
+            if (IsHost && CurrentLobby != null && CurrentLobby.Players.Count > 1)
+            await MigrateLobbyHost();
+
             //remove player (self) from lobby
-            await LobbyService.Instance.RemovePlayerAsync(joinedLobby.Id, AuthenticationService.Instance.PlayerId);
+            await LobbyService.Instance.RemovePlayerAsync(joinedLobby.Id, AuthenticationService.Instance.PlayerId);            
         }
         catch (LobbyServiceException e)
         {
@@ -244,6 +252,7 @@ public class UnityLobbyManager : MonoBehaviour
         }
     }
 
+    //Store current lobby and update host lobby if local player is host
     private void SetCurrentLobby(Lobby lobby)
     {
         joinedLobby = lobby;
@@ -271,12 +280,14 @@ public class UnityLobbyManager : MonoBehaviour
         heartbeatTimer = 0f;
     }
 
+    //Reset heartbeat and poll timers
     private void ResetTimers()
     {
         heartbeatTimer = heartbeatTimeMax;
         lobbyPollTimer = lobbyPollTimeMax;
     }
 
+    //Host sends heartbeat so lobby stays active
     private async void HandleLobbyHeartbeat()
     {
         //only host sends heartbeats
@@ -300,6 +311,7 @@ public class UnityLobbyManager : MonoBehaviour
         }
     }
 
+    //Poll lobby so all players get latest room data
     private async void HandleLobbyPoll()
     {
         //everyone in lobby will poll to update lobby room
@@ -325,7 +337,8 @@ public class UnityLobbyManager : MonoBehaviour
             Debug.LogWarning("Lobby poll failed: " + e);
         }
     }
-
+    
+    //Check if lobby needs password before joining
     public bool LobbyRequiresPassword(Lobby lobby)
     {
         //check public password flag
@@ -334,6 +347,121 @@ public class UnityLobbyManager : MonoBehaviour
 
         return lobby.Data.TryGetValue("HasPassword", out DataObject hasPasswordData) &&
                hasPasswordData.Value == "1";
+    }
+
+    //Move host to next player before current host leaves
+    private async Task MigrateLobbyHost()
+    {
+        //Checks if lobby is not null or players in lobby null
+        if (CurrentLobby == null || CurrentLobby.Players == null)
+            return;
+        //If not host, return
+        if (!IsHost)
+            return;
+        //If only 1 player in lobby, return
+        if (CurrentLobby.Players.Count < 2)
+            return;
+
+        try
+        {     //Set host id to first joined player (client) id
+            Lobby updatedLobby = await LobbyService.Instance.UpdateLobbyAsync(
+                CurrentLobby.Id,
+                new UpdateLobbyOptions
+                {
+                    HostId = CurrentLobby.Players[1].Id
+                });
+
+            //Update lobby room
+            SetCurrentLobby(updatedLobby);
+            OnCurrentLobbyChanged?.Invoke(CurrentLobby);
+        }
+        catch (LobbyServiceException e)
+        {
+            Debug.LogWarning("Host migration failed: " + e);
+        }
+    }
+
+    //Check if shared countdown is active
+    public bool IsCountdownActive()
+    {
+        if (CurrentLobby?.Data == null)
+            return false;
+
+        if (!CurrentLobby.Data.TryGetValue(countdownActiveKey, out DataObject value))
+            return false;
+
+        return value.Value == "1";
+    }
+
+    //Get countdown end time from lobby data
+    public long GetCountdownEndTime()
+    {
+        if (CurrentLobby?.Data == null)
+            return 0;
+
+        if (!CurrentLobby.Data.TryGetValue(countdownEndTimeKey, out DataObject value))
+            return 0;
+
+        if (long.TryParse(value.Value, out long endTime))
+            return endTime;
+
+        return 0;
+    }
+
+    //Start shared countdown for all players
+    public async Task StartGameCountdown(int seconds)
+    {
+        if (!IsHost || CurrentLobby == null)
+            return;
+
+        long endTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + seconds;
+
+        try
+        {
+            Lobby updatedLobby = await LobbyService.Instance.UpdateLobbyAsync(
+                CurrentLobby.Id,
+                new UpdateLobbyOptions
+                {
+                    Data = new Dictionary<string, DataObject>
+                    {
+                        { countdownActiveKey, new DataObject(DataObject.VisibilityOptions.Member, "1") },
+                        { countdownEndTimeKey, new DataObject(DataObject.VisibilityOptions.Member, endTime.ToString()) }
+                    }
+                });
+            SetCurrentLobby(updatedLobby);
+            OnCurrentLobbyChanged?.Invoke(CurrentLobby);
+        }
+        catch (LobbyServiceException e)
+        {
+            Debug.LogWarning("StartGameCountdown failed: " + e);
+        }
+    }
+
+    //Cancel shared countdown for all players
+    public async Task CancelGameCountdown()
+    {
+        if (!IsHost || CurrentLobby == null)
+            return;
+
+        try
+        {
+            Lobby updatedLobby = await LobbyService.Instance.UpdateLobbyAsync(
+                CurrentLobby.Id,
+                new UpdateLobbyOptions
+                {
+                    Data = new Dictionary<string, DataObject>
+                    {
+                        { countdownActiveKey, new DataObject(DataObject.VisibilityOptions.Member, "0") },
+                        { countdownEndTimeKey, new DataObject(DataObject.VisibilityOptions.Member, "0") }
+                    }
+                });
+            SetCurrentLobby(updatedLobby);
+            OnCurrentLobbyChanged?.Invoke(CurrentLobby);
+        }
+        catch (LobbyServiceException e)
+        {
+            Debug.LogWarning("CancelGameCountdown failed: " + e);
+        }
     }
 
     [Serializable]
