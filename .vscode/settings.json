@@ -56,5 +56,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "3D_Multiplayer_Horror.sln"
+    "dotnet.defaultSolution": "3D_Multiplayer_Horror.slnx"
 }
