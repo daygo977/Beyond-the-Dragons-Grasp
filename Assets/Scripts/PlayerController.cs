@@ -34,7 +34,7 @@ public class PlayerController : MonoBehaviour
     public LayerMask interactLayer;
     public TextMeshProUGUI interactText;
 
-    InteractableObject currentInteractable;
+    IInteractable currentInteractable;
 
     [Header("Attacking")]
     public float attackDistance = 3f;
@@ -78,6 +78,12 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsPaused)
+        {
+            SetPausedAnimationState();
+            return;
+        }
+
         isGrounded = controller.isGrounded;
 
         Vector2 moveInput = input.Movement.ReadValue<Vector2>();
@@ -98,6 +104,14 @@ public class PlayerController : MonoBehaviour
         }
 
         SetAnimations();
+    }
+
+    void SetPausedAnimationState()
+    {
+        if (!attacking)
+        {
+            ChangeAnimationState(IDLE);
+        }
     }
 
     void MoveInput(Vector2 inputValue)
@@ -137,14 +151,19 @@ public class PlayerController : MonoBehaviour
 
         if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactLayer))
         {
-            currentInteractable = hit.collider.GetComponent<InteractableObject>();
+            MonoBehaviour[] behaviours = hit.collider.GetComponents<MonoBehaviour>();
 
-            if (currentInteractable != null)
+            foreach (var behaviour in behaviours)
             {
-                if (interactText != null)
-                    interactText.text = currentInteractable.promptText;
+                if (behaviour is IInteractable interactable)
+                {
+                    currentInteractable = interactable;
 
-                return;
+                    if (interactText != null)
+                        interactText.text = currentInteractable.GetPromptText();
+
+                    return;
+                }
             }
         }
 
@@ -159,7 +178,7 @@ public class PlayerController : MonoBehaviour
             currentInteractable.Interact();
 
             if (interactText != null)
-                interactText.text = "";
+                interactText.text = currentInteractable.GetPromptText();
         }
     }
 
