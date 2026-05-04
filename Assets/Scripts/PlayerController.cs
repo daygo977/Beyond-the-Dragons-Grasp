@@ -78,13 +78,19 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        isGrounded = controller.isGrounded;
+
         if (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsPaused)
         {
-            SetPausedAnimationState();
+            _playerVelocity.y += gravity * Time.deltaTime;
+            controller.Move(_playerVelocity * Time.deltaTime);
+
+            if (interactText != null)
+                interactText.text = "";
+
+            currentInteractable = null;
             return;
         }
-
-        isGrounded = controller.isGrounded;
 
         Vector2 moveInput = input.Movement.ReadValue<Vector2>();
         Vector2 lookInput = input.Look.ReadValue<Vector2>();
@@ -104,14 +110,6 @@ public class PlayerController : MonoBehaviour
         }
 
         SetAnimations();
-    }
-
-    void SetPausedAnimationState()
-    {
-        if (!attacking)
-        {
-            ChangeAnimationState(IDLE);
-        }
     }
 
     void MoveInput(Vector2 inputValue)
