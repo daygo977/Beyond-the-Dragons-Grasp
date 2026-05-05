@@ -1,11 +1,12 @@
 using UnityEngine;
+using Unity.Netcode;
 
-public class GameFlags : MonoBehaviour
+public class GameFlags : NetworkBehaviour
 {
     public static GameFlags Instance;
 
     [Header("Global Flags")]
-    public bool hasDoorKey = false;
+    public NetworkVariable<bool> hasDoorKey = new NetworkVariable<bool>(false);
 
     void Awake()
     {
@@ -17,5 +18,11 @@ public class GameFlags : MonoBehaviour
         {
             Destroy(gameObject);
         }
+    }
+
+    public void SetHasDoorKey(bool value)
+    {
+        if (!IsServer) return;
+        hasDoorKey.Value = value;
     }
 }

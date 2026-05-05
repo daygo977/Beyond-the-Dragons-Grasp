@@ -92,7 +92,7 @@ public class PlayerController : NetworkBehaviour
                 cam.enabled = true;
 
             if (audioListener != null)
-                audioListener.enabled = false;
+                audioListener.enabled = true;
 
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
@@ -209,16 +209,70 @@ public class PlayerController : NetworkBehaviour
             interactText.text = "";
     }
 
+    [ServerRpc]
+    void RequestKeyPickupServerRpc(ulong objectId)
+    {
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(objectId, out var netObject))
+            return;
+
+        if (netObject.TryGetComponent<KeyPickup>(out var keyPickup))
+        {
+            keyPickup.Interact();
+        }
+    }
+
+    [ServerRpc]
+    void RequestDoorInteractServerRpc(ulong objectId)
+    {
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(objectId, out var netObject))
+            return;
+
+        if (!netObject.TryGetComponent<DoorInteractable>(out var door))
+            return;
+
+        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.hasDoorKey.Value;
+
+        if (door.requiresKey && !hasKey)
+        {
+            ShowDoorFailPromptClientRpc(OwnerClientId, objectId);
+            return;
+        }
+
+        door.Interact();
+    }
+
+    [ClientRpc]
+    void ShowDoorFailPromptClientRpc(ulong targetClientId, ulong objectId)
+    {
+        if (NetworkManager.Singleton.LocalClientId != targetClientId)
+            return;
+
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(objectId, out var netObject))
+            return;
+
+        if (netObject.TryGetComponent<DoorInteractable>(out var door))
+        {
+            door.ShowFailPromptLocal();
+        }
+    }
+
     void TryInteract()
     {
         if (!IsOwner) return;
         
-        if (currentInteractable != null)
-        {
-            currentInteractable.Interact();
+        if (!Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactLayer))
+            return;
 
-            if (interactText != null)
-                interactText.text = currentInteractable.GetPromptText();
+        if (hit.collider.TryGetComponent<KeyPickup>(out var keyPickup))
+        {
+            RequestKeyPickupServerRpc(keyPickup.NetworkObjectId);
+            return;
+        }
+
+        if (hit.collider.TryGetComponent<DoorInteractable>(out var door))
+        {
+            RequestDoorInteractServerRpc(door.NetworkObjectId);
+            return;
         }
     }
 

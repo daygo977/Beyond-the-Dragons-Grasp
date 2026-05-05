@@ -1,7 +1,7 @@
-using System.Collections;
 using UnityEngine;
+using Unity.Netcode;
 
-public class DoorInteractable : MonoBehaviour, IInteractable
+public class DoorInteractable : NetworkBehaviour, IInteractable
 {
     [Header("Prompt Text")]
     [TextArea]
@@ -23,11 +23,11 @@ public class DoorInteractable : MonoBehaviour, IInteractable
     public float moveSpeed = 2f;
 
     private string temporaryPrompt = "";
-    private Coroutine resetPromptRoutine;
-    private bool isOpen = false;
-    private bool isMoving = false;
+    private float failPromptUntil = 0f;
     private Vector3 closedPosition;
     private Vector3 openPosition;
+
+    private NetworkVariable<bool> isOpen = new NetworkVariable<bool>(false);
 
     void Start()
     {
@@ -38,73 +38,53 @@ public class DoorInteractable : MonoBehaviour, IInteractable
         openPosition = closedPosition + Vector3.up * moveUpAmount;
     }
 
+    void Update()
+    {
+        Vector3 target = isOpen.Value ? openPosition : closedPosition;
+        doorToMove.position = Vector3.MoveTowards(
+            doorToMove.position,
+            target,
+            moveSpeed * Time.deltaTime
+        );
+
+        if (Time.time > failPromptUntil)
+        {
+            temporaryPrompt = "";
+        }
+    }
+
     public string GetPromptText()
     {
         if (!string.IsNullOrEmpty(temporaryPrompt))
             return temporaryPrompt;
 
-        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.hasDoorKey;
+        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.hasDoorKey.Value;
 
-        if (requiresKey && hasKey && !isOpen)
-            return unlockedPrompt;
-
-        if (isOpen)
+        if (isOpen.Value)
             return "";
+
+        if (requiresKey && hasKey)
+            return unlockedPrompt;
 
         return defaultPrompt;
     }
 
     public void Interact()
     {
-        if (isOpen || isMoving)
-            return;
+        if (!NetworkManager.Singleton.IsServer) return;
+        if (isOpen.Value) return;
 
-        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.hasDoorKey;
+        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.hasDoorKey.Value;
 
         if (!requiresKey || hasKey)
         {
-            StartCoroutine(OpenDoor());
-        }
-        else
-        {
-            ShowTemporaryPrompt(failPrompt);
+            isOpen.Value = true;
         }
     }
 
-    IEnumerator OpenDoor()
+    public void ShowFailPromptLocal()
     {
-        isMoving = true;
-
-        while (Vector3.Distance(doorToMove.position, openPosition) > 0.01f)
-        {
-            doorToMove.position = Vector3.MoveTowards(
-                doorToMove.position,
-                openPosition,
-                moveSpeed * Time.deltaTime
-            );
-
-            yield return null;
-        }
-
-        doorToMove.position = openPosition;
-        isOpen = true;
-        isMoving = false;
-    }
-
-    void ShowTemporaryPrompt(string message)
-    {
-        temporaryPrompt = message;
-
-        if (resetPromptRoutine != null)
-            StopCoroutine(resetPromptRoutine);
-
-        resetPromptRoutine = StartCoroutine(ResetPromptAfterDelay());
-    }
-
-    IEnumerator ResetPromptAfterDelay()
-    {
-        yield return new WaitForSeconds(failMessageDuration);
-        temporaryPrompt = "";
-        resetPromptRoutine = null;
+        temporaryPrompt = failPrompt;
+        failPromptUntil = Time.time + failMessageDuration;
     }
 }
