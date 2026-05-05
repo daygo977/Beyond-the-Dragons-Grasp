@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
+using Unity.Netcode;
+using UnityEngineInternal;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : NetworkBehaviour
 {
     PlayerInput playerInput;
     PlayerInput.MainActions input;
@@ -12,6 +14,7 @@ public class PlayerController : MonoBehaviour
     CharacterController controller;
     Animator animator;
     AudioSource audioSource;
+    AudioListener audioListener;
 
     [Header("Controller")]
     public float moveSpeed = 3.5f;
@@ -64,6 +67,9 @@ public class PlayerController : MonoBehaviour
         animator = GetComponentInChildren<Animator>();
         audioSource = GetComponent<AudioSource>();
 
+        if (cam != null)
+            audioListener = cam.GetComponent<AudioListener>();
+
         playerInput = new PlayerInput();
         input = playerInput.Main;
 
@@ -76,8 +82,41 @@ public class PlayerController : MonoBehaviour
             interactText.text = "";
     }
 
+    public override void OnNetworkSpawn()
+    {
+        if (IsOwner)
+        {
+            input.Enable();
+
+            if (cam != null)
+                cam.enabled = true;
+
+            if (audioListener != null)
+                audioListener.enabled = false;
+
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+        }
+        else
+        {
+            input.Disable();
+            if (cam != null)
+                cam.enabled = false;
+
+            if (audioListener != null)
+                audioListener.enabled = false;
+        }
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        input.Disable();
+    }
+
     void Update()
     {
+        if (!IsOwner) return;
+
         isGrounded = controller.isGrounded;
 
         if (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsPaused)
@@ -139,7 +178,8 @@ public class PlayerController : MonoBehaviour
         xRotation -= mouseY * sensitivity;
         xRotation = Mathf.Clamp(xRotation, -80f, 80f);
 
-        cam.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        if (cam != null)
+            cam.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
         transform.Rotate(Vector3.up * mouseX * sensitivity);
     }
 
@@ -171,6 +211,8 @@ public class PlayerController : MonoBehaviour
 
     void TryInteract()
     {
+        if (!IsOwner) return;
+        
         if (currentInteractable != null)
         {
             currentInteractable.Interact();
@@ -193,15 +235,22 @@ public class PlayerController : MonoBehaviour
     void Jump()
     {
         if (isGrounded)
-        {
             _playerVelocity.y = Mathf.Sqrt(jumpHeight * -3.0f * gravity);
-        }
     }
 
     void AssignInputs()
     {
-        input.Jump.performed += ctx => Jump();
-        input.Attack.started += ctx => Attack();
+        input.Jump.performed += ctx =>
+        {
+            if (!IsOwner) return;
+            Jump();
+        };
+
+        input.Attack.started += ctx =>
+        {
+            if (!IsOwner) return;
+            Attack();
+        };
     }
 
     public void ChangeAnimationState(string newState)
@@ -227,6 +276,7 @@ public class PlayerController : MonoBehaviour
 
     public void Attack()
     {
+        if (!IsOwner) return;
         if (!readyToAttack || attacking) return;
 
         readyToAttack = false;
@@ -258,6 +308,7 @@ public class PlayerController : MonoBehaviour
 
     void AttackRaycast()
     {
+        if (!IsOwner)
         if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, attackDistance, attackLayer))
         {
             HitTarget(hit.point);
