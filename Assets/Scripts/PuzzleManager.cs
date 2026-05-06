@@ -7,13 +7,18 @@ public class PuzzleManager : MonoBehaviour
     {
         PuzzleSymbol.Sword,
         PuzzleSymbol.Shield,
-        PuzzleSymbol.Dragon
+        PuzzleSymbol.Beast
     };
 
     [Header("Reward")]
     public GameObject keyReward;
 
-    [Header("Optional Objects")]
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip leverClickSound;
+    [Range(0f, 1f)] public float leverClickVolume = 1f;
+
+    [Header("Optional Effects")]
     public GameObject solvedEffect;
 
     private int currentStep = 0;
@@ -29,10 +34,11 @@ public class PuzzleManager : MonoBehaviour
         if (puzzleSolved)
             return;
 
+        PlayLeverSound();
+
         if (symbol == correctOrder[currentStep])
         {
             Debug.Log(symbol + " was correct.");
-
             currentStep++;
 
             if (currentStep >= correctOrder.Length)
@@ -52,14 +58,10 @@ public class PuzzleManager : MonoBehaviour
         puzzleSolved = true;
 
         if (keyReward != null)
-        {
             keyReward.SetActive(true);
-        }
 
         if (solvedEffect != null)
-        {
             solvedEffect.SetActive(true);
-        }
 
         Debug.Log("Puzzle solved. Boss key spawned.");
     }
@@ -68,11 +70,18 @@ public class PuzzleManager : MonoBehaviour
     {
         currentStep = 0;
     }
+
+    private void PlayLeverSound()
+    {
+        if (audioSource != null && leverClickSound != null)
+            audioSource.PlayOneShot(leverClickSound, leverClickVolume);
+    }
 }
 
 public enum PuzzleSymbol
 {
     Sword,
     Shield,
-    Dragon
+    Beast,
+    Wrong
 }

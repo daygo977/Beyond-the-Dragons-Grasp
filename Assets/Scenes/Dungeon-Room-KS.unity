@@ -3753,8 +3753,34 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 255944637}
   m_SourcePrefab: {fileID: 100100000, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+--- !u!1 &255944636 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+  m_PrefabInstance: {fileID: 255944635}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &255944637
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 255944636}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd2229768d764c46a602f20cd42976d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  puzzleManager: {fileID: 1027600403}
+  leverSymbol: 2
+  promptText: Press E to pull lever
+  solvedText: The mechanism is already solved.
+  leverHandle: {fileID: 0}
+  pulledRotation: {x: -45, y: 0, z: 0}
 --- !u!1001 &261626211
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5482,8 +5508,34 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 374016351}
   m_SourcePrefab: {fileID: 100100000, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+--- !u!1 &374016350 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+  m_PrefabInstance: {fileID: 374016349}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &374016351
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 374016350}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd2229768d764c46a602f20cd42976d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  puzzleManager: {fileID: 1027600403}
+  leverSymbol: 3
+  promptText: Press E to pull lever
+  solvedText: The mechanism is already solved.
+  leverHandle: {fileID: 0}
+  pulledRotation: {x: -45, y: 0, z: 0}
 --- !u!1001 &378041540
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -10413,8 +10465,34 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 744668640}
   m_SourcePrefab: {fileID: 100100000, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+--- !u!1 &744668639 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+  m_PrefabInstance: {fileID: 744668638}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &744668640
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 744668639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd2229768d764c46a602f20cd42976d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  puzzleManager: {fileID: 1027600403}
+  leverSymbol: 3
+  promptText: Press E to pull lever
+  solvedText: The mechanism is already solved.
+  leverHandle: {fileID: 0}
+  pulledRotation: {x: -45, y: 0, z: 0}
 --- !u!1001 &750388515
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -13864,6 +13942,154 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0042fba01429f9040862cca2016238d2, type: 3}
+--- !u!1 &1027600401
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1027600404}
+  - component: {fileID: 1027600403}
+  - component: {fileID: 1027600402}
+  m_Layer: 0
+  m_Name: PuzzleManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!82 &1027600402
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1027600401}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &1027600403
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1027600401}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4f5a8bdfab1efc46a179b57e93f6dcb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  correctOrder: 000000000100000002000000
+  keyReward: {fileID: 0}
+  audioSource: {fileID: 1027600402}
+  leverClickSound: {fileID: 8300000, guid: 6484e800cc5106b4ea0b91f34e4280d8, type: 3}
+  leverClickVolume: 1
+  solvedEffect: {fileID: 0}
+--- !u!4 &1027600404
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1027600401}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -92.33175, y: 11.879246, z: 65.741165}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1032629764
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -20076,8 +20302,34 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1468471644}
   m_SourcePrefab: {fileID: 100100000, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+--- !u!1 &1468471643 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+  m_PrefabInstance: {fileID: 1468471642}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1468471644
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1468471643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd2229768d764c46a602f20cd42976d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  puzzleManager: {fileID: 1027600403}
+  leverSymbol: 3
+  promptText: Press E to pull lever
+  solvedText: The mechanism is already solved.
+  leverHandle: {fileID: 0}
+  pulledRotation: {x: -45, y: 0, z: 0}
 --- !u!1001 &1469066423
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -20823,8 +21075,34 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1507210655}
   m_SourcePrefab: {fileID: 100100000, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+--- !u!1 &1507210654 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+  m_PrefabInstance: {fileID: 1507210653}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1507210655
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1507210654}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd2229768d764c46a602f20cd42976d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  puzzleManager: {fileID: 1027600403}
+  leverSymbol: 1
+  promptText: Press E to pull lever
+  solvedText: The mechanism is already solved.
+  leverHandle: {fileID: 0}
+  pulledRotation: {x: -45, y: 0, z: 0}
 --- !u!1001 &1511349166
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -22946,8 +23224,34 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1625550646}
   m_SourcePrefab: {fileID: 100100000, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+--- !u!1 &1625550645 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+  m_PrefabInstance: {fileID: 1625550644}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1625550646
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1625550645}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd2229768d764c46a602f20cd42976d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  puzzleManager: {fileID: 1027600403}
+  leverSymbol: 0
+  promptText: Press E to pull lever
+  solvedText: The mechanism is already solved.
+  leverHandle: {fileID: 0}
+  pulledRotation: {x: -45, y: 0, z: 0}
 --- !u!1001 &1625739211
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -24041,8 +24345,34 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1702188279}
   m_SourcePrefab: {fileID: 100100000, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+--- !u!1 &1702188278 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+  m_PrefabInstance: {fileID: 1702188277}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1702188279
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1702188278}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd2229768d764c46a602f20cd42976d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  puzzleManager: {fileID: 1027600403}
+  leverSymbol: 3
+  promptText: Press E to pull lever
+  solvedText: The mechanism is already solved.
+  leverHandle: {fileID: 0}
+  pulledRotation: {x: -45, y: 0, z: 0}
 --- !u!1001 &1702702863
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -27276,8 +27606,34 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1907754866}
   m_SourcePrefab: {fileID: 100100000, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+--- !u!1 &1907754865 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1970943279850310, guid: d5d61a4685dd27a44a073035757d4ebf, type: 3}
+  m_PrefabInstance: {fileID: 1907754864}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1907754866
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1907754865}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbd2229768d764c46a602f20cd42976d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  puzzleManager: {fileID: 1027600403}
+  leverSymbol: 3
+  promptText: Press E to pull lever
+  solvedText: The mechanism is already solved.
+  leverHandle: {fileID: 0}
+  pulledRotation: {x: -45, y: 0, z: 0}
 --- !u!1001 &1912706327
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -32736,11 +33092,12 @@ SceneRoots:
   - {fileID: 1450830297}
   - {fileID: 698104225}
   - {fileID: 1099863794}
-  - {fileID: 255944635}
   - {fileID: 1625550644}
   - {fileID: 1507210653}
+  - {fileID: 255944635}
   - {fileID: 374016349}
   - {fileID: 1468471642}
   - {fileID: 744668638}
   - {fileID: 1702188277}
   - {fileID: 1907754864}
+  - {fileID: 1027600404}

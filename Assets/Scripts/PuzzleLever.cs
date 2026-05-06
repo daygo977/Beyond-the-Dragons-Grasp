@@ -23,9 +23,7 @@ public class PuzzleLever : MonoBehaviour, IInteractable
     void Start()
     {
         if (leverHandle != null)
-        {
             originalRotation = leverHandle.localRotation;
-        }
     }
 
     public string GetPromptText()
@@ -40,7 +38,7 @@ public class PuzzleLever : MonoBehaviour, IInteractable
     {
         if (puzzleManager == null)
         {
-            Debug.LogWarning("PuzzleLever is missing a PuzzleManager reference.");
+            Debug.LogWarning(gameObject.name + " is missing a PuzzleManager reference.");
             return;
         }
 
