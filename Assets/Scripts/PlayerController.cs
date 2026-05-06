@@ -241,6 +241,25 @@ public class PlayerController : NetworkBehaviour
         door.Interact();
     }
 
+    [ServerRpc]
+    void RequestDamageServerRpc(ulong targetNetworkObjectId, int damageAmount)
+    {
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetNetworkObjectId, out NetworkObject targetObject))
+            return;
+
+        // Safety check on the server:
+        // sword damage is only allowed on objects/colliders included in attackLayer.
+        if (!NetworkObjectHasLayerInAttackLayer(targetObject))
+            return;
+
+        Health targetHealth = targetObject.GetComponent<Health>();
+
+        if (targetHealth == null)
+            return;
+
+        targetHealth.TakeDamage(damageAmount);
+    }
+
     [ClientRpc]
     void ShowDoorFailPromptClientRpc(ulong targetClientId, ulong objectId)
     {
@@ -362,16 +381,40 @@ public class PlayerController : NetworkBehaviour
 
     void AttackRaycast()
     {
-        if (!IsOwner)
-        if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, attackDistance, attackLayer))
-        {
-            HitTarget(hit.point);
+        if (!IsOwner) return;
 
-            if (hit.transform.TryGetComponent<Health>(out Health target))
-            {
-                target.TakeDamage(attackDamage);
-            }
+        if (!Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, attackDistance, attackLayer))
+            return;
+
+        HitTarget(hit.point);
+
+        NetworkObject targetNetworkObject = hit.collider.GetComponentInParent<NetworkObject>();
+
+        if (targetNetworkObject == null)
+            return;
+
+        RequestDamageServerRpc(targetNetworkObject.NetworkObjectId, attackDamage);
+    }
+
+    bool IsObjectInAttackLayer(GameObject obj)
+    {
+        return (attackLayer.value & (1 << obj.layer)) != 0;
+    }
+
+    bool NetworkObjectHasLayerInAttackLayer(NetworkObject targetObject)
+    {
+        if (IsObjectInAttackLayer(targetObject.gameObject))
+            return true;
+
+        Collider[] colliders = targetObject.GetComponentsInChildren<Collider>();
+
+        foreach (Collider collider in colliders)
+        {
+            if (IsObjectInAttackLayer(collider.gameObject))
+                return true;
         }
+
+        return false;
     }
 
     void HitTarget(Vector3 pos)
