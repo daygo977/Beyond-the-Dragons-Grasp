@@ -63,6 +63,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7236464847257811053}
   - component: {fileID: 5101256500204255420}
+  - component: {fileID: 4753861465395268270}
   m_Layer: 0
   m_Name: slashanim1
   m_TagString: Untagged
@@ -106,6 +107,19 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1.0923815, z: 1.5059286}
   m_Center: {x: 0, y: 0.98180044, z: 0.5833333}
+--- !u!114 &4753861465395268270
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6415000344429060598}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c03f891fb18c9914a8ac57c8e71cf871, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  damage: 10
 --- !u!1 &7962922697346127341
 GameObject:
   m_ObjectHideFlags: 0
@@ -318,6 +332,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8959693723646814561}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4147217808105439448}
   m_SourcePrefab: {fileID: 100100000, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
 --- !u!4 &3488754952806295421 stripped
 Transform:
@@ -370,7 +387,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   player: {fileID: 0}
   detectionRange: 10
-  attackRange: 2
+  attackRange: 1.72
   runSpeed: 3
   rotationSpeed: 8
   screamDuration: 2
@@ -381,6 +398,29 @@ MonoBehaviour:
   stabHitbox: {fileID: 3185479376304620338}
   destroyAfterDeathDelay: 5
   fadeDuration: 2
+--- !u!136 &4147217808105439448
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7311845489745423685}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.5
+  m_Height: 1.6577462
+  m_Direction: 1
+  m_Center: {x: 0, y: 0.8955501, z: 0}
 --- !u!4 &7940747842285549567 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
