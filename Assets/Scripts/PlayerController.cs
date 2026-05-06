@@ -12,6 +12,7 @@ public class PlayerController : MonoBehaviour
     CharacterController controller;
     Animator animator;
     AudioSource audioSource;
+    Health playerHealth;
 
     [Header("Controller")]
     public float moveSpeed = 3.5f;
@@ -21,7 +22,14 @@ public class PlayerController : MonoBehaviour
 
     Vector3 _playerVelocity;
     bool isGrounded;
+    bool wasGrounded;
     bool isSprinting;
+
+    [Header("Fall Damage")]
+    public bool enableFallDamage = true;
+    public float fallDamageThreshold = 12f;
+    public float fallDamageMultiplier = 4f;
+    public int maxFallDamage = 100;
 
     [Header("Camera")]
     public Camera cam;
@@ -63,6 +71,7 @@ public class PlayerController : MonoBehaviour
         controller = GetComponent<CharacterController>();
         animator = GetComponentInChildren<Animator>();
         audioSource = GetComponent<AudioSource>();
+        playerHealth = GetComponent<Health>();
 
         playerInput = new PlayerInput();
         input = playerInput.Main;
@@ -78,12 +87,17 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        wasGrounded = isGrounded;
         isGrounded = controller.isGrounded;
+
+        if (!wasGrounded && isGrounded)
+        {
+            CheckFallDamage();
+        }
 
         if (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsPaused)
         {
-            _playerVelocity.y += gravity * Time.deltaTime;
-            controller.Move(_playerVelocity * Time.deltaTime);
+            ApplyVerticalMovementOnly();
 
             if (interactText != null)
                 interactText.text = "";
@@ -122,6 +136,16 @@ public class PlayerController : MonoBehaviour
 
         controller.Move(transform.TransformDirection(moveDirection) * currentSpeed * Time.deltaTime);
 
+        ApplyGravity();
+    }
+
+    void ApplyVerticalMovementOnly()
+    {
+        ApplyGravity();
+    }
+
+    void ApplyGravity()
+    {
         if (isGrounded && _playerVelocity.y < 0f)
         {
             _playerVelocity.y = -2f;
@@ -129,6 +153,25 @@ public class PlayerController : MonoBehaviour
 
         _playerVelocity.y += gravity * Time.deltaTime;
         controller.Move(_playerVelocity * Time.deltaTime);
+    }
+
+    void CheckFallDamage()
+    {
+        if (!enableFallDamage) return;
+        if (playerHealth == null) return;
+
+        float landingSpeed = Mathf.Abs(_playerVelocity.y);
+
+        if (landingSpeed <= fallDamageThreshold)
+            return;
+
+        int damage = Mathf.RoundToInt((landingSpeed - fallDamageThreshold) * fallDamageMultiplier);
+        damage = Mathf.Clamp(damage, 0, maxFallDamage);
+
+        if (damage > 0)
+        {
+            playerHealth.TakeDamage(damage);
+        }
     }
 
     void LookInput(Vector2 inputValue)
@@ -262,9 +305,22 @@ public class PlayerController : MonoBehaviour
         {
             HitTarget(hit.point);
 
-            if (hit.transform.TryGetComponent<Health>(out Health target))
+            Health normalHealth = hit.transform.GetComponent<Health>();
+
+            if (normalHealth != null)
             {
-                target.TakeDamage(attackDamage);
+                normalHealth.TakeDamage(attackDamage);
+                return;
+            }
+
+            EnemyHealth enemyHealth = hit.transform.GetComponent<EnemyHealth>();
+
+            if (enemyHealth == null)
+                enemyHealth = hit.transform.GetComponentInParent<EnemyHealth>();
+
+            if (enemyHealth != null)
+            {
+                enemyHealth.TakeDamage(attackDamage);
             }
         }
     }
