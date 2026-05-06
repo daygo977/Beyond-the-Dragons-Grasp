@@ -3,17 +3,20 @@ using Unity.Services.Core;
 using Unity.Services.Authentication;
 
 /// <summary>
-/// Initializes Unity Services once for the whole game and signs the player in anonymously.
-/// Relay needs this before host/client Relay connection can work.
+/// Initializes Unity Services once for the whole game and signs player in anonymously
 /// </summary>
 public class UnityServicesBootstrap : MonoBehaviour
 {
+    //Tracks to see if Unity Services have been initialized
+    //Static, shared globally across scenes
     public static bool IsInitialized { get; private set; }
-
     private static UnityServicesBootstrap instance;
 
+    //Gets called when game is initialized
+    //Waits for un
     private async void Awake()
     {
+        // one bootstrap only
         if (instance != null && instance != this)
         {
             Destroy(gameObject);
@@ -29,6 +32,9 @@ public class UnityServicesBootstrap : MonoBehaviour
         await InitializeServices();
     }
 
+    /// <summary>
+    /// Calls unity server to see if active, if not signed in, then anonymous sign in (default)
+    /// </summary>
     private async System.Threading.Tasks.Task InitializeServices()
     {
         try
