@@ -49,7 +49,7 @@ public class PlayerHealthUI : MonoBehaviour
 
         if (healthText != null)
         {
-            healthText.text = playerHealth.currentHealth + " / " + playerHealth.maxHealth;
+            healthText.text = playerHealth.CurrentHealth + " / " + playerHealth.maxHealth;
         }
     }
 }

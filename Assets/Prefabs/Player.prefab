@@ -319,8 +319,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4891f089095705b46a795a201288fee7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
   maxHealth: 100
-  currentHealth: 0
+  currentHealth:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 100
   destroyOnDeath: 0
 --- !u!114 &2818173328624967622
 MonoBehaviour:
