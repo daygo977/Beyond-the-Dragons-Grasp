@@ -469,7 +469,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
       propertyPath: m_Name
-      value: Skeleton_110 1
+      value: Skeleton_110 Final
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
       propertyPath: m_Layer
@@ -754,6 +754,22 @@ MonoBehaviour:
   stabHitbox: {fileID: 9072752235282109941}
   destroyAfterDeathDelay: 5
   fadeDuration: 2
+  audioSource: {fileID: 0}
+  deathClips:
+  - {fileID: 8300000, guid: 08912ac1b7aeaa44c8cc21e852a39dca, type: 3}
+  - {fileID: 8300000, guid: 7952abe2acf8478418e19df7886f063d, type: 3}
+  - {fileID: 8300000, guid: fdb43a49a1e032c4f921b656c57a5db1, type: 3}
+  roarClips:
+  - {fileID: 8300000, guid: 86c05b130a201fd45bfd5395e95f68ca, type: 3}
+  - {fileID: 8300000, guid: 39059c7a85acbf24198c54ab8a05fa74, type: 3}
+  swingClips:
+  - {fileID: 8300000, guid: fbc82da7ed7225741b78b8ff2408e4a5, type: 3}
+  - {fileID: 8300000, guid: 2b07ae1754aca1449a1ea9949c8650cb, type: 3}
+  - {fileID: 8300000, guid: b8b6d7fa374433d43bd780d84e9c53f3, type: 3}
+  - {fileID: 8300000, guid: 7fe54d57e2811a040a967a050e1887bc, type: 3}
+  deathVolume: 0.3
+  roarVolume: 0.3
+  swingVolume: 0.3
 --- !u!136 &805807640822142015
 CapsuleCollider:
   m_ObjectHideFlags: 0

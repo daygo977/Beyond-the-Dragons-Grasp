@@ -49,6 +49,9 @@ public class MainMenuManager : MonoBehaviour
 
     void Start()
     {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
         LoadSettings();
 
         if (volumeSlider != null)
@@ -95,11 +98,11 @@ public class MainMenuManager : MonoBehaviour
         if (mainMenuPanel != null)
             mainMenuPanel.SetActive(false);
 
-        if (settingsPanel != null)
-            settingsPanel.SetActive(false);
-
         if (playPlaceholderPanel != null)
             playPlaceholderPanel.SetActive(false);
+
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
 
         if (exitPromptPanel != null)
             exitPromptPanel.SetActive(false);
@@ -112,6 +115,8 @@ public class MainMenuManager : MonoBehaviour
     {
         logoFinishedThisLaunch = false;
         mainMenuButtonsEnabled = false;
+        isTransitioning = false;
+        exitPromptOpen = false;
 
         if (logoPanel != null)
         {
@@ -124,13 +129,28 @@ public class MainMenuManager : MonoBehaviour
             mainMenuPanel.SetActive(false);
             SetPanelAlphaMultiplier(mainMenuPanel, 0f);
             SetPanelInteractable(mainMenuPanel, false);
+            SetPanelHoverEnabled(mainMenuPanel, false);
         }
+
+        if (playPlaceholderPanel != null)
+            playPlaceholderPanel.SetActive(false);
+
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
+
+        if (exitPromptPanel != null)
+            exitPromptPanel.SetActive(false);
+
+        if (exitBlocker != null)
+            exitBlocker.SetActive(false);
     }
 
     void ShowMainMenuImmediate()
     {
         logoFinishedThisLaunch = true;
         mainMenuButtonsEnabled = true;
+        isTransitioning = false;
+        exitPromptOpen = false;
 
         if (logoPanel != null)
             logoPanel.SetActive(false);
@@ -140,13 +160,14 @@ public class MainMenuManager : MonoBehaviour
             mainMenuPanel.SetActive(true);
             SetPanelAlphaMultiplier(mainMenuPanel, 1f);
             SetPanelInteractable(mainMenuPanel, true);
+            SetPanelHoverEnabled(mainMenuPanel, true);
         }
-
-        if (settingsPanel != null)
-            settingsPanel.SetActive(false);
 
         if (playPlaceholderPanel != null)
             playPlaceholderPanel.SetActive(false);
+
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
 
         CloseExitPrompt();
     }
@@ -163,6 +184,7 @@ public class MainMenuManager : MonoBehaviour
             mainMenuPanel.SetActive(true);
             SetPanelAlphaMultiplier(mainMenuPanel, 0f);
             SetPanelInteractable(mainMenuPanel, false);
+            SetPanelHoverEnabled(mainMenuPanel, false);
         }
 
         float timer = 0f;
@@ -186,8 +208,8 @@ public class MainMenuManager : MonoBehaviour
 
         if (mainMenuPanel != null)
         {
-            SetPanelAlphaMultiplier(mainMenuPanel, 1f);
             mainMenuPanel.SetActive(true);
+            SetPanelAlphaMultiplier(mainMenuPanel, 1f);
         }
 
         yield return new WaitForSecondsRealtime(mainMenuInputDelay);
@@ -196,15 +218,60 @@ public class MainMenuManager : MonoBehaviour
         isTransitioning = false;
 
         if (mainMenuPanel != null)
+        {
             SetPanelInteractable(mainMenuPanel, true);
+            SetPanelHoverEnabled(mainMenuPanel, true);
+        }
     }
 
     public void Play()
     {
         if (!CanUseMainButtons()) return;
 
+        if (mainMenuPanel != null)
+        {
+            SetPanelHoverEnabled(mainMenuPanel, false);
+            mainMenuPanel.SetActive(false);
+        }
+
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
+
         if (playPlaceholderPanel != null)
+        {
             playPlaceholderPanel.SetActive(true);
+            SetPanelAlphaMultiplier(playPlaceholderPanel, 1f);
+            SetPanelInteractable(playPlaceholderPanel, true);
+            SetPanelHoverEnabled(playPlaceholderPanel, true);
+        }
+    }
+
+    public void ReturnToMainMenu()
+    {
+        if (playPlaceholderPanel != null)
+        {
+            SetPanelHoverEnabled(playPlaceholderPanel, false);
+            playPlaceholderPanel.SetActive(false);
+        }
+
+        if (settingsPanel != null)
+        {
+            SetPanelHoverEnabled(settingsPanel, false);
+            settingsPanel.SetActive(false);
+        }
+
+        CloseExitPrompt();
+
+        if (mainMenuPanel != null)
+        {
+            mainMenuPanel.SetActive(true);
+            SetPanelAlphaMultiplier(mainMenuPanel, 1f);
+            SetPanelInteractable(mainMenuPanel, true);
+            SetPanelHoverEnabled(mainMenuPanel, true);
+        }
+
+        mainMenuButtonsEnabled = true;
+        isTransitioning = false;
     }
 
     public void OpenSettings()
@@ -212,26 +279,40 @@ public class MainMenuManager : MonoBehaviour
         if (!CanUseMainButtons()) return;
 
         if (mainMenuPanel != null)
+        {
+            SetPanelHoverEnabled(mainMenuPanel, false);
             mainMenuPanel.SetActive(false);
+        }
+
+        if (playPlaceholderPanel != null)
+        {
+            SetPanelHoverEnabled(playPlaceholderPanel, false);
+            playPlaceholderPanel.SetActive(false);
+        }
 
         if (settingsPanel != null)
         {
             settingsPanel.SetActive(true);
             SetPanelAlphaMultiplier(settingsPanel, 1f);
             SetPanelInteractable(settingsPanel, true);
+            SetPanelHoverEnabled(settingsPanel, true);
         }
     }
 
     public void CloseSettings()
     {
         if (settingsPanel != null)
+        {
+            SetPanelHoverEnabled(settingsPanel, false);
             settingsPanel.SetActive(false);
+        }
 
         if (mainMenuPanel != null)
         {
             mainMenuPanel.SetActive(true);
             SetPanelAlphaMultiplier(mainMenuPanel, 1f);
             SetPanelInteractable(mainMenuPanel, true);
+            SetPanelHoverEnabled(mainMenuPanel, true);
         }
     }
 
@@ -249,10 +330,14 @@ public class MainMenuManager : MonoBehaviour
             exitPromptPanel.SetActive(true);
             SetPanelAlphaMultiplier(exitPromptPanel, 1f);
             SetPanelInteractable(exitPromptPanel, true);
+            SetPanelHoverEnabled(exitPromptPanel, true);
         }
 
         if (mainMenuPanel != null)
+        {
             SetPanelInteractable(mainMenuPanel, false);
+            SetPanelHoverEnabled(mainMenuPanel, false);
+        }
     }
 
     public void CloseExitPrompt()
@@ -260,13 +345,19 @@ public class MainMenuManager : MonoBehaviour
         exitPromptOpen = false;
 
         if (exitPromptPanel != null)
+        {
+            SetPanelHoverEnabled(exitPromptPanel, false);
             exitPromptPanel.SetActive(false);
+        }
 
         if (exitBlocker != null)
             exitBlocker.SetActive(false);
 
         if (mainMenuPanel != null && mainMenuButtonsEnabled)
+        {
             SetPanelInteractable(mainMenuPanel, true);
+            SetPanelHoverEnabled(mainMenuPanel, true);
+        }
     }
 
     public void ConfirmExit()
@@ -338,5 +429,15 @@ public class MainMenuManager : MonoBehaviour
 
         foreach (Selectable selectable in selectables)
             selectable.interactable = interactable;
+    }
+
+    void SetPanelHoverEnabled(GameObject panel, bool enabled)
+    {
+        if (panel == null) return;
+
+        UIButtonHover[] hoverScripts = panel.GetComponentsInChildren<UIButtonHover>(true);
+
+        foreach (UIButtonHover hover in hoverScripts)
+            hover.SetHoverEnabled(enabled);
     }
 }

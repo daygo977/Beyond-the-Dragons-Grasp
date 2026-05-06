@@ -22,6 +22,11 @@ public class DoorInteractable : MonoBehaviour, IInteractable
     public float moveUpAmount = 2f;
     public float moveSpeed = 2f;
 
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip gateOpenSound;
+    [Range(0f, 1f)] public float gateOpenVolume = 1f;
+
     private string temporaryPrompt = "";
     private Coroutine resetPromptRoutine;
     private bool isOpen = false;
@@ -33,6 +38,9 @@ public class DoorInteractable : MonoBehaviour, IInteractable
     {
         if (doorToMove == null)
             doorToMove = transform;
+
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
 
         closedPosition = doorToMove.position;
         openPosition = closedPosition + Vector3.up * moveUpAmount;
@@ -74,6 +82,14 @@ public class DoorInteractable : MonoBehaviour, IInteractable
     IEnumerator OpenDoor()
     {
         isMoving = true;
+
+        if (gateOpenSound != null)
+        {
+            if (audioSource != null)
+                audioSource.PlayOneShot(gateOpenSound, gateOpenVolume);
+            else
+                AudioSource.PlayClipAtPoint(gateOpenSound, doorToMove.position, gateOpenVolume);
+        }
 
         while (Vector3.Distance(doorToMove.position, openPosition) > 0.01f)
         {

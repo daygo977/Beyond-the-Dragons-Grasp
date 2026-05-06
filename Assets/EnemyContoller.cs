@@ -26,6 +26,15 @@ public class EnemyController : MonoBehaviour
     public float destroyAfterDeathDelay = 5f;
     public float fadeDuration = 2f;
 
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip[] deathClips;
+    public AudioClip[] roarClips;
+    public AudioClip[] swingClips;
+    [Range(0f, 1f)] public float deathVolume = 1f;
+    [Range(0f, 1f)] public float roarVolume = 1f;
+    [Range(0f, 1f)] public float swingVolume = 1f;
+
     private Animator animator;
     private CharacterController characterController;
 
@@ -38,6 +47,9 @@ public class EnemyController : MonoBehaviour
     {
         animator = GetComponentInChildren<Animator>();
         characterController = GetComponent<CharacterController>();
+
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
 
         DisableAllHitboxes();
     }
@@ -87,6 +99,8 @@ public class EnemyController : MonoBehaviour
         isBusy = true;
 
         SetMovementAnimation(false, false);
+
+        PlayRandomSound(roarClips, roarVolume);
 
         if (animator != null)
             animator.SetTrigger("Scream");
@@ -139,6 +153,8 @@ public class EnemyController : MonoBehaviour
             transform.rotation = Quaternion.LookRotation(lookTarget);
 
         int attackChoice = Random.Range(0, 3);
+
+        PlayRandomSound(swingClips, swingVolume);
 
         if (animator != null)
         {
@@ -193,6 +209,8 @@ public class EnemyController : MonoBehaviour
             animator.SetBool("IsDead", true);
             animator.SetTrigger("Die");
         }
+
+        PlayRandomSound(deathClips, deathVolume);
 
         StartCoroutine(DeathFadeRoutine());
     }
@@ -275,5 +293,18 @@ public class EnemyController : MonoBehaviour
     public void DisableHitboxes()
     {
         DisableAllHitboxes();
+    }
+
+    void PlayRandomSound(AudioClip[] clips, float volume = 1f)
+    {
+        if (audioSource == null) return;
+        if (clips == null || clips.Length == 0) return;
+
+        AudioClip clip = clips[Random.Range(0, clips.Length)];
+
+        if (clip == null) return;
+
+        audioSource.pitch = Random.Range(0.9f, 1.1f);
+        audioSource.PlayOneShot(clip, volume);
     }
 }

@@ -52,8 +52,12 @@ public class PlayerController : MonoBehaviour
     public LayerMask attackLayer;
 
     public GameObject hitEffect;
-    public AudioClip swordSwing;
+
+    [Header("Player Audio")]
+    public AudioClip[] swordSwingClips;
     public AudioClip hitSound;
+    [Range(0f, 1f)] public float swordSwingVolume = 0.8f;
+    [Range(0f, 1f)] public float hitSoundVolume = 1f;
 
     bool attacking = false;
     bool readyToAttack = true;
@@ -278,8 +282,7 @@ public class PlayerController : MonoBehaviour
         Invoke(nameof(ResetAttack), attackSpeed);
         Invoke(nameof(AttackRaycast), attackDelay);
 
-        audioSource.pitch = Random.Range(0.9f, 1.1f);
-        audioSource.PlayOneShot(swordSwing);
+        PlayRandomSound(swordSwingClips, swordSwingVolume);
 
         if (attackCount == 0)
         {
@@ -327,10 +330,29 @@ public class PlayerController : MonoBehaviour
 
     void HitTarget(Vector3 pos)
     {
-        audioSource.pitch = 1f;
-        audioSource.PlayOneShot(hitSound);
+        if (hitSound != null && audioSource != null)
+        {
+            audioSource.pitch = 1f;
+            audioSource.PlayOneShot(hitSound, hitSoundVolume);
+        }
 
-        GameObject go = Instantiate(hitEffect, pos, Quaternion.identity);
-        Destroy(go, 20f);
+        if (hitEffect != null)
+        {
+            GameObject go = Instantiate(hitEffect, pos, Quaternion.identity);
+            Destroy(go, 20f);
+        }
+    }
+
+    void PlayRandomSound(AudioClip[] clips, float volume = 1f)
+    {
+        if (audioSource == null) return;
+        if (clips == null || clips.Length == 0) return;
+
+        AudioClip clip = clips[Random.Range(0, clips.Length)];
+
+        if (clip == null) return;
+
+        audioSource.pitch = Random.Range(0.9f, 1.1f);
+        audioSource.PlayOneShot(clip, volume);
     }
 }

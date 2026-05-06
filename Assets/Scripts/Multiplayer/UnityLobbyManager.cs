@@ -5,15 +5,14 @@ using Unity.Services.Authentication;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class UnityLobbyManager : MonoBehaviour
 {
     public static UnityLobbyManager Instance { get; private set; }
 
-    [Header("Scene Names")]
-    [SerializeField] private string lobbyBrowseSceneName = "LobbyBrowse";
-    [SerializeField] private string lobbyRoomSceneName = "LobbyRoom";
+    [Header("Lobby Panels")]
+    [SerializeField] private GameObject lobbyBrowsePanel;
+    [SerializeField] private GameObject lobbyRoomPanel;
 
     [Header("Lobby Settings")]
     [SerializeField] private int maxPlayers = 4;
@@ -123,10 +122,10 @@ public class UnityLobbyManager : MonoBehaviour
 
             SetCurrentLobby(lobby);
             ResetTimers();
-            
+
             //Checks to see if OnCurrentLo is null, if yes then throws null instead of exception, else it runs invoke
             OnCurrentLobbyChanged?.Invoke(CurrentLobby);
-            SceneManager.LoadScene(lobbyRoomSceneName);
+            ShowLobbyRoomPanel();
 
             return true;
         }
@@ -212,7 +211,7 @@ public class UnityLobbyManager : MonoBehaviour
             ResetTimers();
 
             OnCurrentLobbyChanged?.Invoke(CurrentLobby);
-            SceneManager.LoadScene(lobbyRoomSceneName);
+            ShowLobbyRoomPanel();
 
             return true;
         }
@@ -233,10 +232,10 @@ public class UnityLobbyManager : MonoBehaviour
         {
             //migrate host id to first joined player
             if (IsHost && CurrentLobby != null && CurrentLobby.Players.Count > 1)
-            await MigrateLobbyHost();
+                await MigrateLobbyHost();
 
             //remove player (self) from lobby
-            await LobbyService.Instance.RemovePlayerAsync(joinedLobby.Id, AuthenticationService.Instance.PlayerId);            
+            await LobbyService.Instance.RemovePlayerAsync(joinedLobby.Id, AuthenticationService.Instance.PlayerId);
         }
         catch (LobbyServiceException e)
         {
@@ -248,8 +247,27 @@ public class UnityLobbyManager : MonoBehaviour
             OnLeftLobby?.Invoke();
             OnCurrentLobbyChanged?.Invoke(null);
 
-            SceneManager.LoadScene(lobbyBrowseSceneName);
+            ShowLobbyBrowsePanel();
+            await RefreshLobbies();
         }
+    }
+
+    public void ShowLobbyBrowsePanel()
+    {
+        if (lobbyRoomPanel != null)
+            lobbyRoomPanel.SetActive(false);
+
+        if (lobbyBrowsePanel != null)
+            lobbyBrowsePanel.SetActive(true);
+    }
+
+    public void ShowLobbyRoomPanel()
+    {
+        if (lobbyBrowsePanel != null)
+            lobbyBrowsePanel.SetActive(false);
+
+        if (lobbyRoomPanel != null)
+            lobbyRoomPanel.SetActive(true);
     }
 
     //Store current lobby and update host lobby if local player is host
@@ -337,7 +355,7 @@ public class UnityLobbyManager : MonoBehaviour
             Debug.LogWarning("Lobby poll failed: " + e);
         }
     }
-    
+
     //Check if lobby needs password before joining
     public bool LobbyRequiresPassword(Lobby lobby)
     {

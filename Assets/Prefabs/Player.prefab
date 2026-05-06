@@ -100,6 +100,8 @@ GameObject:
   - component: {fileID: 1788623314744564118}
   - component: {fileID: 2484499563464876031}
   - component: {fileID: 9164926335790826321}
+  - component: {fileID: 8052572316933314229}
+  - component: {fileID: 7812193591593363499}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -158,8 +160,13 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   hitEffect: {fileID: 5334228485563152753, guid: 0134bdc80242c974b88f68d7bb298ed9, type: 3}
-  swordSwing: {fileID: 8300000, guid: 7923190c5e80b4d4d9396acc5d0b48cf, type: 3}
+  swordSwingClips:
+  - {fileID: 8300000, guid: 14e518410b5e23c4889d7bed1b564567, type: 3}
+  - {fileID: 8300000, guid: a47057e279184324f8c9ca279f4eab43, type: 3}
+  - {fileID: 8300000, guid: 7d6b8aae485d2f94ca7a19e55d79d45d, type: 3}
   hitSound: {fileID: 8300000, guid: 11245d3945c564b45a1bafad5ecb70e5, type: 3}
+  swordSwingVolume: 0.5
+  hitSoundVolume: 0.3
 --- !u!143 &1788623314744564118
 CharacterController:
   m_ObjectHideFlags: 0
@@ -297,6 +304,48 @@ MonoBehaviour:
   maxHealth: 100
   currentHealth: 0
   destroyOnDeath: 0
+  audioSource: {fileID: 0}
+  hurtClips:
+  - {fileID: 8300000, guid: 0f11dd303cf9c1146a5ee7cc1a6b56f5, type: 3}
+  - {fileID: 8300000, guid: e0be3e43d4824a54fbc19d55e6c80716, type: 3}
+  hurtVolume: 0.7
+--- !u!114 &8052572316933314229
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1788623314744564116}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ce0d7284721a7e4fa7ae6e558056658, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerHealth: {fileID: 9164926335790826321}
+  cameraTransform: {fileID: 1788623315372294395}
+  lowHealthOverlay: {fileID: 0}
+  shakeDuration: 0.15
+  shakeStrength: 0.08
+  lowHealthThreshold: 30
+  maxOverlayAlpha: 0.35
+  overlayFadeSpeed: 6
+--- !u!114 &7812193591593363499
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1788623314744564116}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3199247b4859bc54aba6d2a70b8ca0db, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerHealth: {fileID: 9164926335790826321}
+  lowHealthMaterial: {fileID: 2100000, guid: e745947d70ecf114a90a6490bd820e88, type: 2}
+  lowHealthThreshold: 30
+  healthFadeParameter: _HealthFade
+  fadeSpeed: 5
 --- !u!1 &1788623315372294390
 GameObject:
   m_ObjectHideFlags: 0
