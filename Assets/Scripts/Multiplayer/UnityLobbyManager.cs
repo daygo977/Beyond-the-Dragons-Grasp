@@ -6,6 +6,7 @@ using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Unity.Netcode;
 
 public class UnityLobbyManager : MonoBehaviour
 {
@@ -14,6 +15,7 @@ public class UnityLobbyManager : MonoBehaviour
     [Header("Scene Names")]
     [SerializeField] private string lobbyBrowseSceneName = "LobbyBrowse";
     [SerializeField] private string lobbyRoomSceneName = "LobbyRoom";
+    [SerializeField] private string gameSceneName = "TestPlayer";
 
     [Header("Lobby Settings")]
     [SerializeField] private int maxPlayers = 4;
@@ -54,6 +56,11 @@ public class UnityLobbyManager : MonoBehaviour
 
     private const string countdownActiveKey = "CountdownActive";
     private const string countdownEndTimeKey = "CountdownEndTime";
+
+    private bool hasStartedRelayClient;
+    private bool hasStartedRelayHost;
+    private const string relayJoinCodeKey = "RelayJoinCode";
+    private const string gameStartingKey = "GameStarting";
 
     private void Awake()
     {
@@ -114,6 +121,22 @@ public class UnityLobbyManager : MonoBehaviour
                             DataObject.VisibilityOptions.Public,
                             string.IsNullOrWhiteSpace(password) ? "0" : "1"
                         )
+                    },
+                    {
+                        countdownActiveKey,
+                        new DataObject(DataObject.VisibilityOptions.Member, "0")
+                    },
+                    {
+                        countdownEndTimeKey,
+                        new DataObject(DataObject.VisibilityOptions.Member, "0")
+                    },
+                    {
+                        gameStartingKey,
+                        new DataObject(DataObject.VisibilityOptions.Member, "0")
+                    },
+                    {
+                        relayJoinCodeKey,
+                        new DataObject(DataObject.VisibilityOptions.Member, "")
                     }
                 }
             };
@@ -233,7 +256,7 @@ public class UnityLobbyManager : MonoBehaviour
         {
             //migrate host id to first joined player
             if (IsHost && CurrentLobby != null && CurrentLobby.Players.Count > 1)
-            await MigrateLobbyHost();
+                await MigrateLobbyHost();
 
             //remove player (self) from lobby
             await LobbyService.Instance.RemovePlayerAsync(joinedLobby.Id, AuthenticationService.Instance.PlayerId);            
@@ -244,6 +267,9 @@ public class UnityLobbyManager : MonoBehaviour
         }
         finally
         {
+            if (UnityRelayManager.Instance != null)
+                UnityRelayManager.Instance.Disconnect();
+            
             ClearLobby();
             OnLeftLobby?.Invoke();
             OnCurrentLobbyChanged?.Invoke(null);
@@ -278,6 +304,9 @@ public class UnityLobbyManager : MonoBehaviour
 
         lobbyPollTimer = 0f;
         heartbeatTimer = 0f;
+
+        hasStartedRelayClient = false;
+        hasStartedRelayHost = false;
     }
 
     //Reset heartbeat and poll timers
@@ -331,6 +360,9 @@ public class UnityLobbyManager : MonoBehaviour
 
             SetCurrentLobby(lobby);
             OnCurrentLobbyChanged?.Invoke(CurrentLobby);
+
+            await TryStartGameAfterCountdown();
+            TryStartClientFromLobbyData();
         }
         catch (LobbyServiceException e)
         {
@@ -414,6 +446,8 @@ public class UnityLobbyManager : MonoBehaviour
         if (!IsHost || CurrentLobby == null)
             return;
 
+        hasStartedRelayHost = false;
+
         long endTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + seconds;
 
         try
@@ -443,6 +477,8 @@ public class UnityLobbyManager : MonoBehaviour
         if (!IsHost || CurrentLobby == null)
             return;
 
+        hasStartedRelayHost = false;
+
         try
         {
             Lobby updatedLobby = await LobbyService.Instance.UpdateLobbyAsync(
@@ -452,7 +488,9 @@ public class UnityLobbyManager : MonoBehaviour
                     Data = new Dictionary<string, DataObject>
                     {
                         { countdownActiveKey, new DataObject(DataObject.VisibilityOptions.Member, "0") },
-                        { countdownEndTimeKey, new DataObject(DataObject.VisibilityOptions.Member, "0") }
+                        { countdownEndTimeKey, new DataObject(DataObject.VisibilityOptions.Member, "0") },
+                        { gameStartingKey, new DataObject(DataObject.VisibilityOptions.Member, "0") },
+                        { relayJoinCodeKey, new DataObject(DataObject.VisibilityOptions.Member, "") }
                     }
                 });
             SetCurrentLobby(updatedLobby);
@@ -461,6 +499,144 @@ public class UnityLobbyManager : MonoBehaviour
         catch (LobbyServiceException e)
         {
             Debug.LogWarning("CancelGameCountdown failed: " + e);
+        }
+    }
+
+    /// <summary>
+    /// New code
+    /// </summary>
+    /// <returns></returns>
+    public async Task StartGameWithRelay()
+    {
+        if (!IsHost || CurrentLobby == null)
+        {
+            Debug.LogWarning("Only lobby host can start game with Relay.");
+            return;
+        }
+
+        if (UnityRelayManager.Instance == null)
+        {
+            Debug.LogError("UnityRelayManager not found.");
+            return;
+        }
+
+        string relayJoinCode = await UnityRelayManager.Instance.StartHostWithRelay();
+
+        if (string.IsNullOrWhiteSpace(relayJoinCode))
+        {
+            Debug.LogError("Could not start Relay host.");
+            return;
+        }
+
+        try
+        {
+            Lobby updatedLobby = await LobbyService.Instance.UpdateLobbyAsync(
+                CurrentLobby.Id,
+                new UpdateLobbyOptions
+                {
+                    Data = new Dictionary<string, DataObject>
+                    {
+                        { gameStartingKey, new DataObject(DataObject.VisibilityOptions.Member, "1") },
+                        { relayJoinCodeKey, new DataObject(DataObject.VisibilityOptions.Member, relayJoinCode) },
+                        { countdownActiveKey, new DataObject(DataObject.VisibilityOptions.Member, "0") },
+                        { countdownEndTimeKey, new DataObject(DataObject.VisibilityOptions.Member, "0") }
+                    }
+                });
+
+            SetCurrentLobby(updatedLobby);
+            OnCurrentLobbyChanged?.Invoke(CurrentLobby);
+
+            Debug.Log("Relay join code stored in lobby: " + relayJoinCode);
+
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
+            {
+                NetworkManager.Singleton.SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
+            }
+            else
+            {
+                Debug.LogError("NetworkManager is not running as server. Cannot load game scene.");
+            }
+        }
+        catch (LobbyServiceException e)
+        {
+            Debug.LogError("Failed to store Relay join code in Lobby: " + e);
+        }
+    }
+
+    /// <summary>
+    /// New code
+    /// </summary>
+    /// <returns></returns>
+    private async Task TryStartGameAfterCountdown()
+    {
+        if (!IsHost)
+            return;
+
+        if (hasStartedRelayHost)
+            return;
+
+        if (!IsCountdownActive())
+            return;
+
+        long endTime = GetCountdownEndTime();
+
+        if (endTime <= 0)
+            return;
+
+        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        if (now < endTime)
+            return;
+
+        hasStartedRelayHost = true;
+
+        Debug.Log("Countdown finished. Starting Relay game...");
+        await StartGameWithRelay();
+    }
+
+    /// <summary>
+    /// New code
+    /// </summary>
+    /// <returns></returns>
+    private async void TryStartClientFromLobbyData()
+    {
+        if (IsHost)
+            return;
+
+        if (hasStartedRelayClient)
+            return;
+
+        if (CurrentLobby?.Data == null)
+            return;
+
+        if (!CurrentLobby.Data.TryGetValue(gameStartingKey, out DataObject gameStartingData))
+            return;
+
+        if (gameStartingData.Value != "1")
+            return;
+
+        if (!CurrentLobby.Data.TryGetValue(relayJoinCodeKey, out DataObject relayCodeData))
+            return;
+
+        string relayJoinCode = relayCodeData.Value;
+
+        if (string.IsNullOrWhiteSpace(relayJoinCode))
+            return;
+
+        if (UnityRelayManager.Instance == null)
+        {
+            Debug.LogError("UnityRelayManager not found.");
+            return;
+        }
+
+        hasStartedRelayClient = true;
+
+        bool connected = await UnityRelayManager.Instance.StartClientWithRelay(relayJoinCode);
+
+        if (!connected)
+        {
+            hasStartedRelayClient = false;
+            Debug.LogError("Failed to connect Relay client from lobby data.");
         }
     }
 
