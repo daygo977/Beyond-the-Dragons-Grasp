@@ -1,65 +1,115 @@
 using UnityEngine;
 
-public class PuzzleLever : MonoBehaviour, IInteractable
+public class PuzzleLever : MonoBehaviour
 {
-    [Header("Puzzle")]
-    public PuzzleManager puzzleManager;
-    public PuzzleSymbol leverSymbol;
+    [Header("Lever Settings")]
+    [SerializeField] private PuzzleManager puzzleManager;
+    [SerializeField] private PuzzleManager.LeverType leverType;
 
-    [Header("Prompt Text")]
-    [TextArea]
-    public string promptText = "Press E to pull lever";
+    [Header("Interaction")]
+    [SerializeField] private KeyCode interactKey = KeyCode.E;
+    [SerializeField] private GameObject promptTextObject;
 
-    [TextArea]
-    public string solvedText = "The mechanism is already solved.";
+    [Header("Visual Lever Movement")]
+    [SerializeField] private Transform leverHandle;
+    [SerializeField] private Vector3 pulledRotation = new Vector3(-45f, 0f, 0f);
 
-    [Header("Optional Visual Movement")]
-    public Transform leverHandle;
-    public Vector3 pulledRotation = new Vector3(-45f, 0f, 0f);
+    [Header("Audio")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip pullSound;
 
+    private bool playerInRange = false;
     private bool hasBeenPulled = false;
-    private Quaternion originalRotation;
+    private Quaternion startingRotation;
 
-    void Start()
+    private void Start()
     {
         if (leverHandle != null)
-            originalRotation = leverHandle.localRotation;
-    }
-
-    public string GetPromptText()
-    {
-        if (puzzleManager != null && puzzleManager.IsSolved())
-            return solvedText;
-
-        return promptText;
-    }
-
-    public void Interact()
-    {
-        if (puzzleManager == null)
         {
-            Debug.LogWarning(gameObject.name + " is missing a PuzzleManager reference.");
-            return;
+            startingRotation = leverHandle.localRotation;
         }
 
-        puzzleManager.ActivateLever(leverSymbol);
-        PullLeverVisual();
+        if (promptTextObject != null)
+        {
+            promptTextObject.SetActive(false);
+        }
     }
 
-    private void PullLeverVisual()
+    private void Update()
     {
-        if (leverHandle == null)
-            return;
-
-        if (!hasBeenPulled)
+        if (playerInRange && !hasBeenPulled && Input.GetKeyDown(interactKey))
         {
-            leverHandle.localRotation = originalRotation * Quaternion.Euler(pulledRotation);
-            hasBeenPulled = true;
+            PullLever();
+        }
+    }
+
+    private void PullLever()
+    {
+        hasBeenPulled = true;
+
+        if (promptTextObject != null)
+        {
+            promptTextObject.SetActive(false);
+        }
+
+        if (leverHandle != null)
+        {
+            leverHandle.localRotation = Quaternion.Euler(pulledRotation);
+        }
+
+        if (audioSource != null && pullSound != null)
+        {
+            audioSource.PlayOneShot(pullSound);
+        }
+
+        if (puzzleManager != null)
+        {
+            puzzleManager.PullLever(leverType);
         }
         else
         {
-            leverHandle.localRotation = originalRotation;
-            hasBeenPulled = false;
+            Debug.LogWarning("PuzzleManager is missing on " + gameObject.name);
+        }
+    }
+
+    public void ResetLever()
+    {
+        hasBeenPulled = false;
+
+        if (leverHandle != null)
+        {
+            leverHandle.localRotation = startingRotation;
+        }
+
+        if (playerInRange && promptTextObject != null)
+        {
+            promptTextObject.SetActive(true);
+        }
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            playerInRange = true;
+
+            if (!hasBeenPulled && promptTextObject != null)
+            {
+                promptTextObject.SetActive(true);
+            }
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            playerInRange = false;
+
+            if (promptTextObject != null)
+            {
+                promptTextObject.SetActive(false);
+            }
         }
     }
 }

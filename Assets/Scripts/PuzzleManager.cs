@@ -2,43 +2,48 @@ using UnityEngine;
 
 public class PuzzleManager : MonoBehaviour
 {
-    [Header("Correct Order")]
-    public PuzzleSymbol[] correctOrder =
+    public enum LeverType
     {
-        PuzzleSymbol.Sword,
-        PuzzleSymbol.Shield,
-        PuzzleSymbol.Beast
+        Sword,
+        Shield,
+        Beast,
+        Wrong
+    }
+
+    [Header("Correct Order")]
+    [SerializeField] private LeverType[] correctOrder =
+    {
+        LeverType.Sword,
+        LeverType.Shield,
+        LeverType.Beast
     };
 
     [Header("Reward")]
-    public GameObject keyReward;
+    [SerializeField] private GameObject keyToSpawn;
 
-    [Header("Audio")]
-    public AudioSource audioSource;
-    public AudioClip leverClickSound;
-    [Range(0f, 1f)] public float leverClickVolume = 1f;
-
-    [Header("Optional Effects")]
-    public GameObject solvedEffect;
+    [Header("Optional Reset")]
+    [SerializeField] private PuzzleLever[] allLevers;
 
     private int currentStep = 0;
     private bool puzzleSolved = false;
 
-    public bool IsSolved()
+    private void Start()
     {
-        return puzzleSolved;
+        if (keyToSpawn != null)
+        {
+            keyToSpawn.SetActive(false);
+        }
     }
 
-    public void ActivateLever(PuzzleSymbol symbol)
+    public void PullLever(LeverType leverType)
     {
         if (puzzleSolved)
-            return;
-
-        PlayLeverSound();
-
-        if (symbol == correctOrder[currentStep])
         {
-            Debug.Log(symbol + " was correct.");
+            return;
+        }
+
+        if (leverType == correctOrder[currentStep])
+        {
             currentStep++;
 
             if (currentStep >= correctOrder.Length)
@@ -48,7 +53,6 @@ public class PuzzleManager : MonoBehaviour
         }
         else
         {
-            Debug.Log(symbol + " was wrong. Puzzle reset.");
             ResetPuzzle();
         }
     }
@@ -57,31 +61,29 @@ public class PuzzleManager : MonoBehaviour
     {
         puzzleSolved = true;
 
-        if (keyReward != null)
-            keyReward.SetActive(true);
+        if (keyToSpawn != null)
+        {
+            keyToSpawn.SetActive(true);
+        }
 
-        if (solvedEffect != null)
-            solvedEffect.SetActive(true);
-
-        Debug.Log("Puzzle solved. Boss key spawned.");
+        Debug.Log("Puzzle solved! Key spawned.");
     }
 
     private void ResetPuzzle()
     {
         currentStep = 0;
-    }
 
-    private void PlayLeverSound()
-    {
-        if (audioSource != null && leverClickSound != null)
-            audioSource.PlayOneShot(leverClickSound, leverClickVolume);
-    }
-}
+        if (allLevers != null)
+        {
+            foreach (PuzzleLever lever in allLevers)
+            {
+                if (lever != null)
+                {
+                    lever.ResetLever();
+                }
+            }
+        }
 
-public enum PuzzleSymbol
-{
-    Sword,
-    Shield,
-    Beast,
-    Wrong
+        Debug.Log("Wrong lever order. Puzzle reset.");
+    }
 }
