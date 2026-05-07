@@ -17,10 +17,19 @@ public class PuzzleLever : MonoBehaviour
     [Header("Audio")]
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip pullSound;
+    [SerializeField] private float pullVolume = 1f;
 
     private bool playerInRange = false;
     private bool hasBeenPulled = false;
     private Quaternion startingRotation;
+
+    private void Awake()
+    {
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+        }
+    }
 
     private void Start()
     {
@@ -57,10 +66,7 @@ public class PuzzleLever : MonoBehaviour
             leverHandle.localRotation = Quaternion.Euler(pulledRotation);
         }
 
-        if (audioSource != null && pullSound != null)
-        {
-            audioSource.PlayOneShot(pullSound);
-        }
+        PlayLeverSound();
 
         if (puzzleManager != null)
         {
@@ -70,6 +76,23 @@ public class PuzzleLever : MonoBehaviour
         {
             Debug.LogWarning("PuzzleManager is missing on " + gameObject.name);
         }
+    }
+
+    private void PlayLeverSound()
+    {
+        if (audioSource == null)
+        {
+            Debug.LogWarning("No AudioSource assigned on " + gameObject.name);
+            return;
+        }
+
+        if (pullSound == null)
+        {
+            Debug.LogWarning("No pull sound assigned on " + gameObject.name);
+            return;
+        }
+
+        audioSource.PlayOneShot(pullSound, pullVolume);
     }
 
     public void ResetLever()
