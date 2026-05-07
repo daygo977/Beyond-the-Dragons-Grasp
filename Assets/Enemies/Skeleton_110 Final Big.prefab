@@ -469,7 +469,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
       propertyPath: m_Name
-      value: Skeleton_110 Final
+      value: Skeleton_110 Final Big
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
       propertyPath: m_Layer
@@ -691,6 +691,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
       insertIndex: -1
       addedObject: {fileID: 805807640822142015}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8563331992199279901}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5643916926776419975}
   m_SourcePrefab: {fileID: 100100000, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
 --- !u!4 &2768465414537286181 stripped
 Transform:
@@ -746,15 +752,40 @@ MonoBehaviour:
   attackRange: 1.72
   runSpeed: 3
   rotationSpeed: 8
+  patrolWhenIdle: 1
+  patrolRadius: 10
+  patrolPointReachDistance: 1
+  patrolWaitTime: 1
+  patrolPointAttempts: 20
+  ignoreHeightForDetection: 1
+  loseInterestRange: 18
+  debugDetection: 0
+  patrolSampleDistance: 4
+  minPatrolPointDistance: 2
+  minWallDistance: 0.7
+  chaseRepathRate: 0.2
+  stuckCheckInterval: 0.5
+  stuckDistance: 0.05
+  stuckTime: 1.5
+  debugNavMesh: 0
   screamDuration: 2
   attackDuration: 1.2
   damageReactionDuration: 0.6
+  movingBool: IsMoving
+  runningBool: IsRunning
+  deadBool: IsDead
+  screamTrigger: Scream
+  slash01Trigger: Slash01
+  slash02Trigger: Slash02
+  stabTrigger: Stab
+  damageTrigger: TakeDamage
+  dieTrigger: Die
   slash01Hitbox: {fileID: 7495466074894322088}
   slash02Hitbox: {fileID: 4022826365339890398}
   stabHitbox: {fileID: 9072752235282109941}
   destroyAfterDeathDelay: 5
   fadeDuration: 2
-  audioSource: {fileID: 0}
+  audioSource: {fileID: 5643916926776419975}
   deathClips:
   - {fileID: 8300000, guid: 08912ac1b7aeaa44c8cc21e852a39dca, type: 3}
   - {fileID: 8300000, guid: 7952abe2acf8478418e19df7886f063d, type: 3}
@@ -793,6 +824,125 @@ CapsuleCollider:
   m_Height: 1.6577462
   m_Direction: 1
   m_Center: {x: 0, y: 0.8955501, z: 0}
+--- !u!195 &8563331992199279901
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8320954735956138013}
+  m_Enabled: 1
+  m_AgentTypeID: 0
+  m_Radius: 0.5
+  m_Speed: 3.5
+  m_Acceleration: 8
+  avoidancePriority: 50
+  m_AngularSpeed: 120
+  m_StoppingDistance: 0
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 2
+  m_BaseOffset: 0
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 4
+--- !u!82 &5643916926776419975
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8320954735956138013}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 24300002, guid: 76a66f267da66854bb4a804143743f30, type: 2}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!4 &8661029642636182183 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
