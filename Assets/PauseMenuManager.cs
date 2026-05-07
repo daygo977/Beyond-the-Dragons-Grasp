@@ -120,9 +120,16 @@ public class PauseMenuManager : MonoBehaviour
 
     public void LeaveGame()
     {
+        IsPaused = false;
+
+        if (pauseMenuUI != null)
+            pauseMenuUI.SetActive(false);
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
         if (!string.IsNullOrEmpty(mainMenuSceneName))
         {
-            ResumeGame();
             SceneManager.LoadScene(mainMenuSceneName);
         }
         else

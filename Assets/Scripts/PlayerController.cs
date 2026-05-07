@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
-using Unity.Netcode;
-using UnityEngineInternal;
 
-public class PlayerController : NetworkBehaviour
+public class PlayerController : MonoBehaviour
 {
     PlayerInput playerInput;
     PlayerInput.MainActions input;
@@ -14,7 +12,7 @@ public class PlayerController : NetworkBehaviour
     CharacterController controller;
     Animator animator;
     AudioSource audioSource;
-    AudioListener audioListener;
+    Health playerHealth;
 
     [Header("Controller")]
     public float moveSpeed = 3.5f;
@@ -24,7 +22,14 @@ public class PlayerController : NetworkBehaviour
 
     Vector3 _playerVelocity;
     bool isGrounded;
+    bool wasGrounded;
     bool isSprinting;
+
+    [Header("Fall Damage")]
+    public bool enableFallDamage = true;
+    public float fallDamageThreshold = 12f;
+    public float fallDamageMultiplier = 4f;
+    public int maxFallDamage = 100;
 
     [Header("Camera")]
     public Camera cam;
@@ -47,8 +52,12 @@ public class PlayerController : NetworkBehaviour
     public LayerMask attackLayer;
 
     public GameObject hitEffect;
-    public AudioClip swordSwing;
+
+    [Header("Player Audio")]
+    public AudioClip[] swordSwingClips;
     public AudioClip hitSound;
+    [Range(0f, 1f)] public float swordSwingVolume = 0.8f;
+    [Range(0f, 1f)] public float hitSoundVolume = 1f;
 
     bool attacking = false;
     bool readyToAttack = true;
@@ -66,9 +75,7 @@ public class PlayerController : NetworkBehaviour
         controller = GetComponent<CharacterController>();
         animator = GetComponentInChildren<Animator>();
         audioSource = GetComponent<AudioSource>();
-
-        if (cam != null)
-            audioListener = cam.GetComponent<AudioListener>();
+        playerHealth = GetComponent<Health>();
 
         playerInput = new PlayerInput();
         input = playerInput.Main;
@@ -82,47 +89,19 @@ public class PlayerController : NetworkBehaviour
             interactText.text = "";
     }
 
-    public override void OnNetworkSpawn()
-    {
-        if (IsOwner)
-        {
-            input.Enable();
-
-            if (cam != null)
-                cam.enabled = true;
-
-            if (audioListener != null)
-                audioListener.enabled = true;
-
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-        }
-        else
-        {
-            input.Disable();
-            if (cam != null)
-                cam.enabled = false;
-
-            if (audioListener != null)
-                audioListener.enabled = false;
-        }
-    }
-
-    public override void OnNetworkDespawn()
-    {
-        input.Disable();
-    }
-
     void Update()
     {
-        if (!IsOwner) return;
-
+        wasGrounded = isGrounded;
         isGrounded = controller.isGrounded;
+
+        if (!wasGrounded && isGrounded)
+        {
+            CheckFallDamage();
+        }
 
         if (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsPaused)
         {
-            _playerVelocity.y += gravity * Time.deltaTime;
-            controller.Move(_playerVelocity * Time.deltaTime);
+            ApplyVerticalMovementOnly();
 
             if (interactText != null)
                 interactText.text = "";
@@ -161,6 +140,16 @@ public class PlayerController : NetworkBehaviour
 
         controller.Move(transform.TransformDirection(moveDirection) * currentSpeed * Time.deltaTime);
 
+        ApplyGravity();
+    }
+
+    void ApplyVerticalMovementOnly()
+    {
+        ApplyGravity();
+    }
+
+    void ApplyGravity()
+    {
         if (isGrounded && _playerVelocity.y < 0f)
         {
             _playerVelocity.y = -2f;
@@ -168,6 +157,25 @@ public class PlayerController : NetworkBehaviour
 
         _playerVelocity.y += gravity * Time.deltaTime;
         controller.Move(_playerVelocity * Time.deltaTime);
+    }
+
+    void CheckFallDamage()
+    {
+        if (!enableFallDamage) return;
+        if (playerHealth == null) return;
+
+        float landingSpeed = Mathf.Abs(_playerVelocity.y);
+
+        if (landingSpeed <= fallDamageThreshold)
+            return;
+
+        int damage = Mathf.RoundToInt((landingSpeed - fallDamageThreshold) * fallDamageMultiplier);
+        damage = Mathf.Clamp(damage, 0, maxFallDamage);
+
+        if (damage > 0)
+        {
+            playerHealth.TakeDamage(damage);
+        }
     }
 
     void LookInput(Vector2 inputValue)
@@ -178,8 +186,7 @@ public class PlayerController : NetworkBehaviour
         xRotation -= mouseY * sensitivity;
         xRotation = Mathf.Clamp(xRotation, -80f, 80f);
 
-        if (cam != null)
-            cam.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        cam.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
         transform.Rotate(Vector3.up * mouseX * sensitivity);
     }
 
@@ -209,89 +216,14 @@ public class PlayerController : NetworkBehaviour
             interactText.text = "";
     }
 
-    [ServerRpc]
-    void RequestKeyPickupServerRpc(ulong objectId)
-    {
-        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(objectId, out var netObject))
-            return;
-
-        if (netObject.TryGetComponent<KeyPickup>(out var keyPickup))
-        {
-            keyPickup.Interact();
-        }
-    }
-
-    [ServerRpc]
-    void RequestDoorInteractServerRpc(ulong objectId)
-    {
-        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(objectId, out var netObject))
-            return;
-
-        if (!netObject.TryGetComponent<DoorInteractable>(out var door))
-            return;
-
-        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.hasDoorKey.Value;
-
-        if (door.requiresKey && !hasKey)
-        {
-            ShowDoorFailPromptClientRpc(OwnerClientId, objectId);
-            return;
-        }
-
-        door.Interact();
-    }
-
-    [ServerRpc]
-    void RequestDamageServerRpc(ulong targetNetworkObjectId, int damageAmount)
-    {
-        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetNetworkObjectId, out NetworkObject targetObject))
-            return;
-
-        // Safety check on the server:
-        // sword damage is only allowed on objects/colliders included in attackLayer.
-        if (!NetworkObjectHasLayerInAttackLayer(targetObject))
-            return;
-
-        Health targetHealth = targetObject.GetComponent<Health>();
-
-        if (targetHealth == null)
-            return;
-
-        targetHealth.TakeDamage(damageAmount);
-    }
-
-    [ClientRpc]
-    void ShowDoorFailPromptClientRpc(ulong targetClientId, ulong objectId)
-    {
-        if (NetworkManager.Singleton.LocalClientId != targetClientId)
-            return;
-
-        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(objectId, out var netObject))
-            return;
-
-        if (netObject.TryGetComponent<DoorInteractable>(out var door))
-        {
-            door.ShowFailPromptLocal();
-        }
-    }
-
     void TryInteract()
     {
-        if (!IsOwner) return;
-        
-        if (!Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactLayer))
-            return;
-
-        if (hit.collider.TryGetComponent<KeyPickup>(out var keyPickup))
+        if (currentInteractable != null)
         {
-            RequestKeyPickupServerRpc(keyPickup.NetworkObjectId);
-            return;
-        }
+            currentInteractable.Interact();
 
-        if (hit.collider.TryGetComponent<DoorInteractable>(out var door))
-        {
-            RequestDoorInteractServerRpc(door.NetworkObjectId);
-            return;
+            if (interactText != null)
+                interactText.text = currentInteractable.GetPromptText();
         }
     }
 
@@ -308,22 +240,15 @@ public class PlayerController : NetworkBehaviour
     void Jump()
     {
         if (isGrounded)
+        {
             _playerVelocity.y = Mathf.Sqrt(jumpHeight * -3.0f * gravity);
+        }
     }
 
     void AssignInputs()
     {
-        input.Jump.performed += ctx =>
-        {
-            if (!IsOwner) return;
-            Jump();
-        };
-
-        input.Attack.started += ctx =>
-        {
-            if (!IsOwner) return;
-            Attack();
-        };
+        input.Jump.performed += ctx => Jump();
+        input.Attack.started += ctx => Attack();
     }
 
     public void ChangeAnimationState(string newState)
@@ -349,7 +274,6 @@ public class PlayerController : NetworkBehaviour
 
     public void Attack()
     {
-        if (!IsOwner) return;
         if (!readyToAttack || attacking) return;
 
         readyToAttack = false;
@@ -358,8 +282,7 @@ public class PlayerController : NetworkBehaviour
         Invoke(nameof(ResetAttack), attackSpeed);
         Invoke(nameof(AttackRaycast), attackDelay);
 
-        audioSource.pitch = Random.Range(0.9f, 1.1f);
-        audioSource.PlayOneShot(swordSwing);
+        PlayRandomSound(swordSwingClips, swordSwingVolume);
 
         if (attackCount == 0)
         {
@@ -381,48 +304,55 @@ public class PlayerController : NetworkBehaviour
 
     void AttackRaycast()
     {
-        if (!IsOwner) return;
-
-        if (!Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, attackDistance, attackLayer))
-            return;
-
-        HitTarget(hit.point);
-
-        NetworkObject targetNetworkObject = hit.collider.GetComponentInParent<NetworkObject>();
-
-        if (targetNetworkObject == null)
-            return;
-
-        RequestDamageServerRpc(targetNetworkObject.NetworkObjectId, attackDamage);
-    }
-
-    bool IsObjectInAttackLayer(GameObject obj)
-    {
-        return (attackLayer.value & (1 << obj.layer)) != 0;
-    }
-
-    bool NetworkObjectHasLayerInAttackLayer(NetworkObject targetObject)
-    {
-        if (IsObjectInAttackLayer(targetObject.gameObject))
-            return true;
-
-        Collider[] colliders = targetObject.GetComponentsInChildren<Collider>();
-
-        foreach (Collider collider in colliders)
+        if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, attackDistance, attackLayer))
         {
-            if (IsObjectInAttackLayer(collider.gameObject))
-                return true;
-        }
+            HitTarget(hit.point);
 
-        return false;
+            Health normalHealth = hit.transform.GetComponent<Health>();
+
+            if (normalHealth != null)
+            {
+                normalHealth.TakeDamage(attackDamage);
+                return;
+            }
+
+            EnemyHealth enemyHealth = hit.transform.GetComponent<EnemyHealth>();
+
+            if (enemyHealth == null)
+                enemyHealth = hit.transform.GetComponentInParent<EnemyHealth>();
+
+            if (enemyHealth != null)
+            {
+                enemyHealth.TakeDamage(attackDamage);
+            }
+        }
     }
 
     void HitTarget(Vector3 pos)
     {
-        audioSource.pitch = 1f;
-        audioSource.PlayOneShot(hitSound);
+        if (hitSound != null && audioSource != null)
+        {
+            audioSource.pitch = 1f;
+            audioSource.PlayOneShot(hitSound, hitSoundVolume);
+        }
 
-        GameObject go = Instantiate(hitEffect, pos, Quaternion.identity);
-        Destroy(go, 20f);
+        if (hitEffect != null)
+        {
+            GameObject go = Instantiate(hitEffect, pos, Quaternion.identity);
+            Destroy(go, 20f);
+        }
+    }
+
+    void PlayRandomSound(AudioClip[] clips, float volume = 1f)
+    {
+        if (audioSource == null) return;
+        if (clips == null || clips.Length == 0) return;
+
+        AudioClip clip = clips[Random.Range(0, clips.Length)];
+
+        if (clip == null) return;
+
+        audioSource.pitch = Random.Range(0.9f, 1.1f);
+        audioSource.PlayOneShot(clip, volume);
     }
 }

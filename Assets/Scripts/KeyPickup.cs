@@ -1,54 +1,64 @@
+using System.Collections;
 using UnityEngine;
-using Unity.Netcode;
-using Unity.VisualScripting;
-using NUnit.Framework;
 
-public class KeyPickup : NetworkBehaviour, IInteractable
+public class KeyPickup : MonoBehaviour, IInteractable
 {
     [Header("Prompt Text")]
     [TextArea]
     public string promptText = "Press E to pick up key";
 
-    private NetworkVariable<bool> isCollected = new NetworkVariable<bool>(false);
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip pickupSound;
+    [Range(0f, 1f)] public float pickupVolume = 1f;
 
-    public override void OnNetworkSpawn()
-    {
-        UpdateVisual();
-        isCollected.OnValueChanged += OnCollectedChanged;
-    }
+    [Header("Pickup")]
+    public float disableDelay = 1f;
 
-    public override void OnNetworkDespawn()
-    {
-        isCollected.OnValueChanged -= OnCollectedChanged;
-    }
-
-    void OnCollectedChanged(bool prev, bool current)
-    {
-        UpdateVisual();
-    }
-
-    void UpdateVisual()
-    {
-        gameObject.SetActive(!isCollected.Value);
-    }
+    private bool pickedUp;
 
     public string GetPromptText()
     {
-        if (isCollected.Value) return "";
+        if (pickedUp)
+            return "";
+
         return promptText;
     }
 
     public void Interact()
     {
-        if (!NetworkManager.Singleton.IsServer) return;
+        if (pickedUp) return;
 
-        if (isCollected.Value) return;
-
-        isCollected.Value = true;
+        pickedUp = true;
 
         if (GameFlags.Instance != null)
         {
-            GameFlags.Instance.SetHasDoorKey(true);
+            GameFlags.Instance.hasDoorKey = true;
         }
+
+        StartCoroutine(PickupRoutine());
+    }
+
+    IEnumerator PickupRoutine()
+    {
+        Collider[] colliders = GetComponentsInChildren<Collider>();
+
+        foreach (Collider col in colliders)
+            col.enabled = false;
+
+        Renderer[] renderers = GetComponentsInChildren<Renderer>();
+
+        foreach (Renderer rend in renderers)
+            rend.enabled = false;
+
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
+
+        if (pickupSound != null && audioSource != null)
+            audioSource.PlayOneShot(pickupSound, pickupVolume);
+
+        yield return new WaitForSeconds(disableDelay);
+
+        gameObject.SetActive(false);
     }
 }

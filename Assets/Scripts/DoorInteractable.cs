@@ -1,7 +1,7 @@
+using System.Collections;
 using UnityEngine;
-using Unity.Netcode;
 
-public class DoorInteractable : NetworkBehaviour, IInteractable
+public class DoorInteractable : MonoBehaviour, IInteractable
 {
     [Header("Prompt Text")]
     [TextArea]
@@ -22,35 +22,28 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
     public float moveUpAmount = 2f;
     public float moveSpeed = 2f;
 
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip gateOpenSound;
+    [Range(0f, 1f)] public float gateOpenVolume = 1f;
+
     private string temporaryPrompt = "";
-    private float failPromptUntil = 0f;
+    private Coroutine resetPromptRoutine;
+    private bool isOpen = false;
+    private bool isMoving = false;
     private Vector3 closedPosition;
     private Vector3 openPosition;
-
-    private NetworkVariable<bool> isOpen = new NetworkVariable<bool>(false);
 
     void Start()
     {
         if (doorToMove == null)
             doorToMove = transform;
 
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
+
         closedPosition = doorToMove.position;
         openPosition = closedPosition + Vector3.up * moveUpAmount;
-    }
-
-    void Update()
-    {
-        Vector3 target = isOpen.Value ? openPosition : closedPosition;
-        doorToMove.position = Vector3.MoveTowards(
-            doorToMove.position,
-            target,
-            moveSpeed * Time.deltaTime
-        );
-
-        if (Time.time > failPromptUntil)
-        {
-            temporaryPrompt = "";
-        }
     }
 
     public string GetPromptText()
@@ -58,33 +51,76 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
         if (!string.IsNullOrEmpty(temporaryPrompt))
             return temporaryPrompt;
 
-        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.hasDoorKey.Value;
+        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.hasDoorKey;
 
-        if (isOpen.Value)
-            return "";
-
-        if (requiresKey && hasKey)
+        if (requiresKey && hasKey && !isOpen)
             return unlockedPrompt;
+
+        if (isOpen)
+            return "";
 
         return defaultPrompt;
     }
 
     public void Interact()
     {
-        if (!NetworkManager.Singleton.IsServer) return;
-        if (isOpen.Value) return;
+        if (isOpen || isMoving)
+            return;
 
-        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.hasDoorKey.Value;
+        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.hasDoorKey;
 
         if (!requiresKey || hasKey)
         {
-            isOpen.Value = true;
+            StartCoroutine(OpenDoor());
+        }
+        else
+        {
+            ShowTemporaryPrompt(failPrompt);
         }
     }
 
-    public void ShowFailPromptLocal()
+    IEnumerator OpenDoor()
     {
-        temporaryPrompt = failPrompt;
-        failPromptUntil = Time.time + failMessageDuration;
+        isMoving = true;
+
+        if (gateOpenSound != null)
+        {
+            if (audioSource != null)
+                audioSource.PlayOneShot(gateOpenSound, gateOpenVolume);
+            else
+                AudioSource.PlayClipAtPoint(gateOpenSound, doorToMove.position, gateOpenVolume);
+        }
+
+        while (Vector3.Distance(doorToMove.position, openPosition) > 0.01f)
+        {
+            doorToMove.position = Vector3.MoveTowards(
+                doorToMove.position,
+                openPosition,
+                moveSpeed * Time.deltaTime
+            );
+
+            yield return null;
+        }
+
+        doorToMove.position = openPosition;
+        isOpen = true;
+        isMoving = false;
+    }
+
+    void ShowTemporaryPrompt(string message)
+    {
+        temporaryPrompt = message;
+
+        if (resetPromptRoutine != null)
+            StopCoroutine(resetPromptRoutine);
+
+        resetPromptRoutine = StartCoroutine(ResetPromptAfterDelay());
+    }
+
+    IEnumerator ResetPromptAfterDelay()
+    {
+        yield return new WaitForSeconds(failMessageDuration);
+        temporaryPrompt = "";
+        resetPromptRoutine = null;
     }
 }
