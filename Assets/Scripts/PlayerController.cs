@@ -10,10 +10,11 @@ public class PlayerController : MonoBehaviour
     PlayerInput.MainActions input;
 
     CharacterController controller;
-    [Header("First Person Animation")]
-    public Animator firstPersonAnimator;
     AudioSource audioSource;
     Health playerHealth;
+
+    [Header("First Person Animation")]
+    public Animator firstPersonAnimator;
 
     [Header("Controller")]
     public float moveSpeed = 3.5f;
@@ -44,6 +45,7 @@ public class PlayerController : MonoBehaviour
     public TextMeshProUGUI interactText;
 
     IInteractable currentInteractable;
+    IHoldInteractable currentHoldInteractable;
 
     [Header("Attacking")]
     public float attackDistance = 3f;
@@ -84,10 +86,11 @@ public class PlayerController : MonoBehaviour
     void Awake()
     {
         controller = GetComponent<CharacterController>();
-        if (firstPersonAnimator == null)
-            firstPersonAnimator = GetComponentInChildren<Animator>();
         audioSource = GetComponent<AudioSource>();
         playerHealth = GetComponent<Health>();
+
+        if (firstPersonAnimator == null)
+            firstPersonAnimator = GetComponentInChildren<Animator>();
 
         playerInput = new PlayerInput();
         input = playerInput.Main;
@@ -119,6 +122,7 @@ public class PlayerController : MonoBehaviour
                 interactText.text = "";
 
             currentInteractable = null;
+            currentHoldInteractable = null;
             return;
         }
 
@@ -134,11 +138,7 @@ public class PlayerController : MonoBehaviour
         LookInput(lookInput);
 
         CheckForInteractable();
-
-        if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
-        {
-            TryInteract();
-        }
+        HandleInteractionInput();
 
         SetAnimations();
     }
@@ -153,11 +153,6 @@ public class PlayerController : MonoBehaviour
 
         controller.Move(transform.TransformDirection(moveDirection) * currentSpeed * Time.deltaTime);
 
-        ApplyGravity();
-    }
-
-    void ApplyVerticalMovementOnly()
-    {
         ApplyGravity();
     }
 
@@ -190,20 +185,7 @@ public class PlayerController : MonoBehaviour
             playerHealth.TakeDamage(damage);
         }
     }
-    void SetPausedAnimationState()
-    {
-        if (thirdPersonAnimator != null)
-        {
-            thirdPersonAnimator.SetFloat(moveXParameter, 0f);
-            thirdPersonAnimator.SetFloat(moveYParameter, 0f);
-            thirdPersonAnimator.SetBool(isMovingParameter, false);
-            thirdPersonAnimator.SetBool(isRunningParameter, false);
-            thirdPersonAnimator.SetBool(isGroundedParameter, true);
-        }
 
-        if (!attacking)
-            ChangeAnimationState(IDLE);
-    }
     void UpdateThirdPersonAnimator(Vector2 moveInput)
     {
         if (thirdPersonAnimator == null) return;
@@ -218,6 +200,21 @@ public class PlayerController : MonoBehaviour
         thirdPersonAnimator.SetBool(isMovingParameter, moving);
         thirdPersonAnimator.SetBool(isRunningParameter, isSprinting);
         thirdPersonAnimator.SetBool(isGroundedParameter, isGrounded);
+    }
+
+    void SetPausedAnimationState()
+    {
+        if (thirdPersonAnimator != null)
+        {
+            thirdPersonAnimator.SetFloat(moveXParameter, 0f);
+            thirdPersonAnimator.SetFloat(moveYParameter, 0f);
+            thirdPersonAnimator.SetBool(isMovingParameter, false);
+            thirdPersonAnimator.SetBool(isRunningParameter, false);
+            thirdPersonAnimator.SetBool(isGroundedParameter, true);
+        }
+
+        if (!attacking)
+            ChangeAnimationState(IDLE);
     }
 
     void LookInput(Vector2 inputValue)
@@ -235,6 +232,7 @@ public class PlayerController : MonoBehaviour
     void CheckForInteractable()
     {
         currentInteractable = null;
+        currentHoldInteractable = null;
 
         if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactLayer))
         {
@@ -246,6 +244,9 @@ public class PlayerController : MonoBehaviour
                 {
                     currentInteractable = interactable;
 
+                    if (behaviour is IHoldInteractable holdInteractable)
+                        currentHoldInteractable = holdInteractable;
+
                     if (interactText != null)
                         interactText.text = currentInteractable.GetPromptText();
 
@@ -256,6 +257,37 @@ public class PlayerController : MonoBehaviour
 
         if (interactText != null)
             interactText.text = "";
+    }
+
+    void HandleInteractionInput()
+    {
+        if (Keyboard.current == null)
+            return;
+
+        if (currentHoldInteractable != null)
+        {
+            if (Keyboard.current.eKey.isPressed)
+            {
+                currentHoldInteractable.HoldInteract(Time.deltaTime);
+
+                if (interactText != null)
+                    interactText.text = currentHoldInteractable.GetPromptText();
+            }
+            else
+            {
+                currentHoldInteractable.ResetHold();
+
+                if (interactText != null && currentInteractable != null)
+                    interactText.text = currentInteractable.GetPromptText();
+            }
+
+            return;
+        }
+
+        if (Keyboard.current.eKey.wasPressedThisFrame)
+        {
+            TryInteract();
+        }
     }
 
     void TryInteract()
