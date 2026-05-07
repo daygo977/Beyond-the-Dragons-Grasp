@@ -3,6 +3,9 @@ using UnityEngine;
 
 public class KeyPickup : MonoBehaviour, IInteractable
 {
+    [Header("Key")]
+    public string keyId = "DefaultKey";
+
     [Header("Prompt Text")]
     [TextArea]
     public string promptText = "Press E to pick up key";
@@ -33,7 +36,7 @@ public class KeyPickup : MonoBehaviour, IInteractable
 
         if (GameFlags.Instance != null)
         {
-            GameFlags.Instance.hasDoorKey = true;
+            GameFlags.Instance.AddKey(keyId);
         }
 
         StartCoroutine(PickupRoutine());

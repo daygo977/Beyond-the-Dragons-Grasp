@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GameFlags : MonoBehaviour
@@ -5,7 +6,7 @@ public class GameFlags : MonoBehaviour
     public static GameFlags Instance;
 
     [Header("Global Flags")]
-    public bool hasDoorKey = false;
+    public List<string> collectedKeys = new List<string>();
 
     void Awake()
     {
@@ -17,5 +18,22 @@ public class GameFlags : MonoBehaviour
         {
             Destroy(gameObject);
         }
+    }
+
+    public void AddKey(string keyId)
+    {
+        if (string.IsNullOrWhiteSpace(keyId))
+            return;
+
+        if (!collectedKeys.Contains(keyId))
+            collectedKeys.Add(keyId);
+    }
+
+    public bool HasKey(string keyId)
+    {
+        if (string.IsNullOrWhiteSpace(keyId))
+            return false;
+
+        return collectedKeys.Contains(keyId);
     }
 }

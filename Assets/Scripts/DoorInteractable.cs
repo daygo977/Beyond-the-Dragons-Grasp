@@ -3,6 +3,9 @@ using UnityEngine;
 
 public class DoorInteractable : MonoBehaviour, IInteractable
 {
+    [Header("Key Pairing")]
+    public string requiredKeyId = "DefaultKey";
+
     [Header("Prompt Text")]
     [TextArea]
     public string defaultPrompt = "Press E to open";
@@ -22,6 +25,9 @@ public class DoorInteractable : MonoBehaviour, IInteractable
     public float moveUpAmount = 2f;
     public float moveSpeed = 2f;
 
+    [Header("Lock Object")]
+    public GameObject lockObject;
+
     [Header("Audio")]
     public AudioSource audioSource;
     public AudioClip gateOpenSound;
@@ -39,6 +45,9 @@ public class DoorInteractable : MonoBehaviour, IInteractable
         if (doorToMove == null)
             doorToMove = transform;
 
+        if (lockObject == null)
+            lockObject = gameObject;
+
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
 
@@ -51,7 +60,7 @@ public class DoorInteractable : MonoBehaviour, IInteractable
         if (!string.IsNullOrEmpty(temporaryPrompt))
             return temporaryPrompt;
 
-        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.hasDoorKey;
+        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.HasKey(requiredKeyId);
 
         if (requiresKey && hasKey && !isOpen)
             return unlockedPrompt;
@@ -67,7 +76,7 @@ public class DoorInteractable : MonoBehaviour, IInteractable
         if (isOpen || isMoving)
             return;
 
-        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.hasDoorKey;
+        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.HasKey(requiredKeyId);
 
         if (!requiresKey || hasKey)
         {
@@ -82,6 +91,9 @@ public class DoorInteractable : MonoBehaviour, IInteractable
     IEnumerator OpenDoor()
     {
         isMoving = true;
+
+        if (lockObject != null)
+            HideLockObject();
 
         if (gateOpenSound != null)
         {
@@ -122,5 +134,20 @@ public class DoorInteractable : MonoBehaviour, IInteractable
         yield return new WaitForSeconds(failMessageDuration);
         temporaryPrompt = "";
         resetPromptRoutine = null;
+    }
+
+    void HideLockObject()
+    {
+        GameObject targetLock = lockObject != null ? lockObject : gameObject;
+
+        Renderer[] renderers = targetLock.GetComponentsInChildren<Renderer>();
+
+        foreach (Renderer rend in renderers)
+            rend.enabled = false;
+
+        Collider[] colliders = targetLock.GetComponentsInChildren<Collider>();
+
+        foreach (Collider col in colliders)
+            col.enabled = false;
     }
 }
