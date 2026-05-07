@@ -9,6 +9,11 @@ public class UIButtonHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
     public float moveSpeed = 10f;
     public bool goUpDownInsteadOfLeftRight;
 
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip hoverClip;
+    public AudioClip clickClip;
+
     [Header("Click")]
     public bool canClick = true;
 
@@ -22,16 +27,6 @@ public class UIButtonHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 
         if (textTransform != null)
             originalPos = textTransform.localPosition;
-    }
-
-    void OnEnable()
-    {
-        ResetHoverState();
-    }
-
-    void OnDisable()
-    {
-        ResetHoverState();
     }
 
     void Update()
@@ -50,12 +45,10 @@ public class UIButtonHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (!canClick) return;
-
         hovering = true;
 
-        if (MenuAudioManager.Instance != null)
-            MenuAudioManager.Instance.PlayHover();
+        if (audioSource != null && hoverClip != null)
+            audioSource.PlayOneShot(hoverClip, 0.5f);
     }
 
     public void OnPointerExit(PointerEventData eventData)
@@ -67,22 +60,7 @@ public class UIButtonHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
     {
         if (!canClick) return;
 
-        if (MenuAudioManager.Instance != null)
-            MenuAudioManager.Instance.PlayClick();
-    }
-
-    public void ResetHoverState()
-    {
-        hovering = false;
-
-        if (textTransform != null)
-            textTransform.localPosition = originalPos;
-    }
-
-    public void SetHoverEnabled(bool enabled)
-    {
-        canClick = enabled;
-        hovering = false;
-        this.enabled = true;
+        if (audioSource != null && clickClip != null)
+            audioSource.PlayOneShot(clickClip, 0.5f);
     }
 }
