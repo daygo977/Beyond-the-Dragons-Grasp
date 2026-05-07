@@ -1,7 +1,9 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
+using Unity.Netcode;
 
+//Prevents one player from triggering another player cam shake when taking damage
 public class PlayerDamageFeedback : MonoBehaviour
 {
     [Header("References")]
@@ -22,35 +24,79 @@ public class PlayerDamageFeedback : MonoBehaviour
     private Vector3 originalCameraLocalPosition;
     private Coroutine shakeRoutine;
 
-    void Start()
+    private void Start()
     {
-        if (playerHealth == null)
-            playerHealth = GetComponent<Health>();
+        //Multiplayer edit
+        FindLocalPlayerHealth();
 
         if (cameraTransform != null)
             originalCameraLocalPosition = cameraTransform.localPosition;
 
         if (playerHealth != null)
-            lastHealth = playerHealth.currentHealth;
+            lastHealth = playerHealth.CurrentHealth;
 
         SetOverlayAlpha(0f);
     }
 
-    void Update()
+    //Multiplayer edit, new logic
+    private void Update()
     {
-        if (playerHealth == null) return;
+        if (playerHealth == null)
+            FindLocalPlayerHealth();
 
-        if (playerHealth.currentHealth < lastHealth)
+        if (playerHealth == null)
+            return;
+
+        if (!IsLocalPlayersHealth())
         {
-            PlayDamageShake();
+            SetOverlayAlpha(0f);
+            return;
         }
+
+        int current = playerHealth.CurrentHealth;
+
+        if (lastHealth < 0)
+            lastHealth = current;
+
+        if (current < lastHealth)
+            PlayDamageShake();
 
         UpdateLowHealthOverlay();
 
-        lastHealth = playerHealth.currentHealth;
+        lastHealth = current;
     }
 
-    void PlayDamageShake()
+    //Multiplayer new function,
+    private void FindLocalPlayerHealth()
+    {
+        if (playerHealth != null)
+            return;
+
+        if (NetworkManager.Singleton == null)
+            return;
+
+        if (NetworkManager.Singleton.LocalClient == null)
+            return;
+
+        if (NetworkManager.Singleton.LocalClient.PlayerObject == null)
+            return;
+
+        playerHealth = NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<Health>();
+    }
+
+    //Multiplayer new function, 
+    private bool IsLocalPlayersHealth()
+    {
+        if (playerHealth == null)
+            return false;
+
+        if (!playerHealth.IsSpawned)
+            return true;
+
+        return playerHealth.IsOwner;
+    }
+
+    private void PlayDamageShake()
     {
         if (cameraTransform == null) return;
 
@@ -60,7 +106,7 @@ public class PlayerDamageFeedback : MonoBehaviour
         shakeRoutine = StartCoroutine(ShakeRoutine());
     }
 
-    IEnumerator ShakeRoutine()
+    private IEnumerator ShakeRoutine()
     {
         float timer = 0f;
 
@@ -80,18 +126,19 @@ public class PlayerDamageFeedback : MonoBehaviour
         shakeRoutine = null;
     }
 
-    void UpdateLowHealthOverlay()
+    private void UpdateLowHealthOverlay()
     {
         if (lowHealthOverlay == null) return;
 
-        float targetAlpha = playerHealth.currentHealth <= lowHealthThreshold ? maxOverlayAlpha : 0f;
+        //Multiplayer edit
+        float targetAlpha = playerHealth.CurrentHealth <= lowHealthThreshold ? maxOverlayAlpha : 0f;
 
         Color color = lowHealthOverlay.color;
         color.a = Mathf.Lerp(color.a, targetAlpha, Time.deltaTime * overlayFadeSpeed);
         lowHealthOverlay.color = color;
     }
 
-    void SetOverlayAlpha(float alpha)
+    private void SetOverlayAlpha(float alpha)
     {
         if (lowHealthOverlay == null) return;
 

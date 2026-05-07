@@ -1,45 +1,93 @@
 using UnityEngine;
+using Unity.Netcode;
+using Unity.Services.Authentication;
+using Unity.Services.Lobbies.Models;
+using Unity.Collections;
 
-public class PlayerModelVisibility : MonoBehaviour
+//Multiplayer edit, whole class logic change
+public class PlayerModelVisibility : NetworkBehaviour
 {
-    [Header("Local Player")]
-    public bool isLocalPlayer = true;
-
-    [Header("Models")]
+    [Header("First Person")]
     public GameObject firstPersonHands;
-    public GameObject thirdPersonModel;
 
-    private Renderer[] thirdPersonRenderers;
+    [Header("Third Person Models")]
+    public GameObject[] thirdPersonModels = new GameObject[4];
 
-    void Awake()
+    private NetworkVariable<int> selectedModelIndex = new NetworkVariable<int>(
+        -1,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
+    public override void OnNetworkSpawn()
     {
-        if (thirdPersonModel != null)
-            thirdPersonRenderers = thirdPersonModel.GetComponentsInChildren<Renderer>(true);
-    }
+        selectedModelIndex.OnValueChanged += OnModelIndexChanged;
 
-    void Start()
-    {
-        ApplyVisibility();
-    }
-
-    public void ApplyVisibility()
-    {
-        if (!Application.isPlaying)
-            return;
-
-        if (firstPersonHands != null)
-            firstPersonHands.SetActive(isLocalPlayer);
-
-        if (thirdPersonRenderers != null)
+        if (IsOwner)
         {
-            foreach (Renderer rend in thirdPersonRenderers)
-                rend.enabled = !isLocalPlayer;
+            FixedString64Bytes authPlayerId = AuthenticationService.Instance.PlayerId;
+            SubmitPlayerIdServerRpc(authPlayerId);
         }
+
+        ApplyVisibility();
     }
 
-    public void SetLocalPlayer(bool local)
+    public override void OnNetworkDespawn()
     {
-        isLocalPlayer = local;
+        selectedModelIndex.OnValueChanged -= OnModelIndexChanged;
+    }
+
+    private void OnModelIndexChanged(int oldValue, int newValue)
+    {
         ApplyVisibility();
+    }
+
+    [ServerRpc]
+    private void SubmitPlayerIdServerRpc(FixedString64Bytes authPlayerId)
+    {
+        int modelIndex = GetModelIndexFromLobby(authPlayerId.ToString());
+
+        selectedModelIndex.Value = modelIndex;
+    }
+
+    private int GetModelIndexFromLobby(string authPlayerId)
+    {
+        if (UnityLobbyManager.Instance != null &&
+            UnityLobbyManager.Instance.CurrentLobby != null &&
+            UnityLobbyManager.Instance.CurrentLobby.Players != null)
+        {
+            for (int i = 0; i < UnityLobbyManager.Instance.CurrentLobby.Players.Count; i++)
+            {
+                Player lobbyPlayer = UnityLobbyManager.Instance.CurrentLobby.Players[i];
+
+                if (lobbyPlayer.Id == authPlayerId)
+                {
+                    return Mathf.Clamp(i, 0, thirdPersonModels.Length - 1);
+                }
+            }
+        }
+
+        // Fallback if lobby data is missing.
+        return Mathf.Clamp((int)OwnerClientId, 0, thirdPersonModels.Length - 1);
+    }
+
+    private void ApplyVisibility()
+    {
+        if (firstPersonHands != null)
+            firstPersonHands.SetActive(IsOwner);
+
+        int modelIndex = selectedModelIndex.Value;
+
+        if (modelIndex < 0)
+            modelIndex = Mathf.Clamp((int)OwnerClientId, 0, thirdPersonModels.Length - 1);
+
+        for (int i = 0; i < thirdPersonModels.Length; i++)
+        {
+            if (thirdPersonModels[i] == null)
+                continue;
+
+            bool shouldShowModel = !IsOwner && i == modelIndex;
+            thirdPersonModels[i].SetActive(shouldShowModel);
+        }
     }
 }

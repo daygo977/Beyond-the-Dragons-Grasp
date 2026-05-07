@@ -1,7 +1,8 @@
 using System.Collections;
 using UnityEngine;
+using Unity.Netcode;
 
-public class DoorInteractable : MonoBehaviour, IInteractable
+public class DoorInteractable : NetworkBehaviour, IInteractable
 {
     [Header("Key Pairing")]
     public string requiredKeyId = "DefaultKey";
@@ -9,10 +10,8 @@ public class DoorInteractable : MonoBehaviour, IInteractable
     [Header("Prompt Text")]
     [TextArea]
     public string defaultPrompt = "Press E to open";
-
     [TextArea]
     public string unlockedPrompt = "Use key to open door";
-
     [TextArea]
     public string failPrompt = "You do not have the key.";
 
@@ -35,12 +34,21 @@ public class DoorInteractable : MonoBehaviour, IInteractable
 
     private string temporaryPrompt = "";
     private Coroutine resetPromptRoutine;
-    private bool isOpen = false;
-    private bool isMoving = false;
+
+    //Multiplayer edit, changed from bool to network variable bool
+    private NetworkVariable<bool> isOpen = new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
     private Vector3 closedPosition;
     private Vector3 openPosition;
 
-    void Start()
+    private bool playedOpenSound;
+
+    //Multiplayer edit, added private
+    private void Start()
     {
         if (doorToMove == null)
             doorToMove = transform;
@@ -53,6 +61,49 @@ public class DoorInteractable : MonoBehaviour, IInteractable
 
         closedPosition = doorToMove.position;
         openPosition = closedPosition + Vector3.up * moveUpAmount;
+
+        //Multiplayer edit,
+        ApplyDoorVisualState();
+    }
+    
+    //Multiplayer new function
+    public override void OnNetworkSpawn()
+    {
+        isOpen.OnValueChanged += OnOpenStateChanged;
+        ApplyDoorVisualState();
+    }
+
+    //Multiplayer new function
+    public override void OnNetworkDespawn()
+    {
+        isOpen.OnValueChanged -= OnOpenStateChanged;
+    }
+
+    //Multiplayer new function
+    private void Update()
+    {
+        Vector3 target = isOpen.Value ? openPosition : closedPosition;
+
+        if (doorToMove != null)
+        {
+            doorToMove.position = Vector3.MoveTowards(
+                doorToMove.position,
+                target,
+                moveSpeed * Time.deltaTime
+            );
+        }
+    }
+
+    //Multiplayer new function
+    private void OnOpenStateChanged(bool oldValue, bool newValue)
+    {
+        ApplyDoorVisualState();
+
+        if (newValue && !playedOpenSound)
+        {
+            playedOpenSound = true;
+            PlayOpenSoundLocal();
+        }
     }
 
     public string GetPromptText()
@@ -62,64 +113,55 @@ public class DoorInteractable : MonoBehaviour, IInteractable
 
         bool hasKey = GameFlags.Instance != null && GameFlags.Instance.HasKey(requiredKeyId);
 
-        if (requiresKey && hasKey && !isOpen)
-            return unlockedPrompt;
-
-        if (isOpen)
+        //Multiplayer edit, basic logic
+        if (isOpen.Value)
             return "";
+
+        if (requiresKey && hasKey)
+            return unlockedPrompt;
 
         return defaultPrompt;
     }
 
     public void Interact()
     {
-        if (isOpen || isMoving)
-            return;
+        //Multiplayer edit,
+        if (!IsServer) return;
+
+        if (isOpen.Value) return;
 
         bool hasKey = GameFlags.Instance != null && GameFlags.Instance.HasKey(requiredKeyId);
 
         if (!requiresKey || hasKey)
         {
-            StartCoroutine(OpenDoor());
-        }
-        else
-        {
-            ShowTemporaryPrompt(failPrompt);
+            isOpen.Value = true;
         }
     }
 
-    IEnumerator OpenDoor()
+    //Multiplayer new function
+    public bool CanOpen()
     {
-        isMoving = true;
+        if (!requiresKey)
+            return true;
 
-        if (lockObject != null)
-            HideLockObject();
-
-        if (gateOpenSound != null)
-        {
-            if (audioSource != null)
-                audioSource.PlayOneShot(gateOpenSound, gateOpenVolume);
-            else
-                AudioSource.PlayClipAtPoint(gateOpenSound, doorToMove.position, gateOpenVolume);
-        }
-
-        while (Vector3.Distance(doorToMove.position, openPosition) > 0.01f)
-        {
-            doorToMove.position = Vector3.MoveTowards(
-                doorToMove.position,
-                openPosition,
-                moveSpeed * Time.deltaTime
-            );
-
-            yield return null;
-        }
-
-        doorToMove.position = openPosition;
-        isOpen = true;
-        isMoving = false;
+        return GameFlags.Instance != null && GameFlags.Instance.HasKey(requiredKeyId);
+    }
+    
+    //Multiplayer new function
+    public void ShowFailPromptLocal()
+    {
+        ShowTemporaryPrompt(failPrompt);
     }
 
-    void ShowTemporaryPrompt(string message)
+    //Multiplayer new function
+    private void ApplyDoorVisualState()
+    {
+        if (lockObject != null)
+            lockObject.SetActive(!isOpen.Value);
+    }
+
+    //Multiplayer edit, added private
+    private void ShowTemporaryPrompt(string message)
     {
         temporaryPrompt = message;
 
@@ -129,25 +171,23 @@ public class DoorInteractable : MonoBehaviour, IInteractable
         resetPromptRoutine = StartCoroutine(ResetPromptAfterDelay());
     }
 
-    IEnumerator ResetPromptAfterDelay()
+    //Multiplayer edit, added private
+    private IEnumerator ResetPromptAfterDelay()
     {
         yield return new WaitForSeconds(failMessageDuration);
         temporaryPrompt = "";
         resetPromptRoutine = null;
     }
 
-    void HideLockObject()
+    //Multiplayer new function
+    private void PlayOpenSoundLocal()
     {
-        GameObject targetLock = lockObject != null ? lockObject : gameObject;
+        if (gateOpenSound == null)
+            return;
 
-        Renderer[] renderers = targetLock.GetComponentsInChildren<Renderer>();
-
-        foreach (Renderer rend in renderers)
-            rend.enabled = false;
-
-        Collider[] colliders = targetLock.GetComponentsInChildren<Collider>();
-
-        foreach (Collider col in colliders)
-            col.enabled = false;
+        if (audioSource != null)
+            audioSource.PlayOneShot(gateOpenSound, gateOpenVolume);
+        else if (doorToMove != null)
+            AudioSource.PlayClipAtPoint(gateOpenSound, doorToMove.position, gateOpenVolume);
     }
 }

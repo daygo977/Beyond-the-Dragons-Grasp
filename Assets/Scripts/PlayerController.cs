@@ -3,14 +3,18 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
+//Multiplayer edit
+using Unity.Netcode;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : NetworkBehaviour
 {
     PlayerInput playerInput;
     PlayerInput.MainActions input;
 
     CharacterController controller;
     AudioSource audioSource;
+    //Multiplayer edit
+    AudioListener audioListener;
     Health playerHealth;
 
     [Header("First Person Animation")]
@@ -102,10 +106,51 @@ public class PlayerController : MonoBehaviour
 
         if (interactText != null)
             interactText.text = "";
+
+        //Multiplayer edit
+        if (cam != null)
+            audioListener = cam.GetComponent<AudioListener>();
+    }
+
+    //New multiplayer edit
+    //Local player owns camera, input and audio listener
+    public override void OnNetworkSpawn()
+    {
+        if (IsOwner)
+        {
+            input.Enable();
+
+            if (cam != null)
+                cam.enabled = true;
+
+            if (audioListener != null)
+                audioListener.enabled = true;
+
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+        else
+        {
+            input.Disable();
+
+            if (cam != null)
+                cam.enabled = false;
+
+            if (audioListener != null)
+                audioListener.enabled = false;
+        }
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        input.Disable();
     }
 
     void Update()
     {
+        //Multiplayer edit: checks local player is owner for own instance
+        if (!IsOwner) return;
+
         wasGrounded = isGrounded;
         isGrounded = controller.isGrounded;
 
@@ -182,8 +227,21 @@ public class PlayerController : MonoBehaviour
 
         if (damage > 0)
         {
-            playerHealth.TakeDamage(damage);
+            //Multiplayer edit, server should change player health
+            RequestSelfDamageServerRpc(damage);
         }
+    }
+
+    //Multiplayer new ServerRpc function
+    [ServerRpc]
+    void RequestSelfDamageServerRpc(int damageAmount)
+    {
+        Health health = GetComponent<Health>();
+
+        if (health == null)
+            return;
+
+        health.TakeDamage(damageAmount);
     }
 
     void UpdateThirdPersonAnimator(Vector2 moveInput)
@@ -236,7 +294,8 @@ public class PlayerController : MonoBehaviour
 
         if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactLayer))
         {
-            MonoBehaviour[] behaviours = hit.collider.GetComponents<MonoBehaviour>();
+            //Multiplayer edit, can change if mistake, remove InParent text
+            MonoBehaviour[] behaviours = hit.collider.GetComponentsInParent<MonoBehaviour>();
 
             foreach (var behaviour in behaviours)
             {
@@ -290,8 +349,24 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    //Multiplayer edit, key and door interaction should occur on server level
+    //Uses newly added ServerRpc (client to server), and ClientRpc (server to client)
     void TryInteract()
     {
+        if (!IsOwner) return;
+
+        if (!Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactLayer))
+            return;
+
+        NetworkObject networkObject = hit.collider.GetComponentInParent<NetworkObject>();
+
+        if (networkObject != null)
+        {
+            RequestInteractServerRpc(networkObject.NetworkObjectId);
+            return;
+        }
+
+        // Local fallback for non-networked test objects.
         if (currentInteractable != null)
         {
             currentInteractable.Interact();
@@ -301,14 +376,77 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    [ServerRpc]
+    void RequestInteractServerRpc(ulong objectId)
+    {
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(objectId, out NetworkObject netObject))
+            return;
+
+        KeyPickup keyPickup = netObject.GetComponentInChildren<KeyPickup>();
+
+        if (keyPickup != null)
+        {
+            keyPickup.Interact();
+            return;
+        }
+
+        DoorInteractable door = netObject.GetComponentInChildren<DoorInteractable>();
+
+        if (door != null)
+        {
+            bool hasKey = GameFlags.Instance != null && GameFlags.Instance.HasKey(door.requiredKeyId);
+
+            if (door.requiresKey && !hasKey)
+            {
+                ShowDoorFailPromptClientRpc(OwnerClientId, objectId);
+                return;
+            }
+
+            door.Interact();
+            return;
+        }
+
+        MonoBehaviour[] behaviours = netObject.GetComponentsInChildren<MonoBehaviour>();
+
+        foreach (MonoBehaviour behaviour in behaviours)
+        {
+            if (behaviour is IInteractable interactable)
+            {
+                interactable.Interact();
+                return;
+            }
+        }
+    }
+
+    [ClientRpc]
+    void ShowDoorFailPromptClientRpc(ulong targetClientId, ulong objectId)
+    {
+        if (NetworkManager.Singleton.LocalClientId != targetClientId)
+            return;
+
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(objectId, out NetworkObject netObject))
+            return;
+
+        DoorInteractable door = netObject.GetComponentInChildren<DoorInteractable>();
+
+        if (door != null)
+        {
+            door.ShowFailPromptLocal();
+        }
+    }
+
+    //Both functions, multiplayer edit
+    //Non-owner players should not enable input
     void OnEnable()
     {
-        input.Enable();
+        if (IsSpawned && IsOwner)
+            input.Enable();
     }
 
     void OnDisable()
     {
-        input.Disable();
+        if (playerInput != null)
+            input.Disable();
     }
 
     void Jump()
@@ -322,10 +460,20 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    //Multiplayer edit, checks to see if local player is owner
     void AssignInputs()
     {
-        input.Jump.performed += ctx => Jump();
-        input.Attack.started += ctx => Attack();
+        input.Jump.performed += ctx =>
+        {
+            if (!IsOwner) return;
+            Jump();
+        };
+
+        input.Attack.started += ctx =>
+        {
+            if (!IsOwner) return;
+            Attack();
+        };
     }
 
     public void ChangeAnimationState(string newState)
@@ -351,8 +499,10 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    //Multiplayer edit, checks if local player is owner
     public void Attack()
     {
+        if (!IsOwner) return;
         if (!readyToAttack || attacking) return;
 
         readyToAttack = false;
@@ -384,29 +534,24 @@ public class PlayerController : MonoBehaviour
         readyToAttack = true;
     }
 
+    //Multiplayer edit, checks if local player is owner
     void AttackRaycast()
     {
-        if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, attackDistance, attackLayer))
+        if (!IsOwner) return;
+
+        if (!Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, attackDistance, attackLayer))
+            return;
+        
+        HitTarget(hit.point);
+
+        EnemyHealth enemyHealth = hit.transform.GetComponent<EnemyHealth>();
+
+        if (enemyHealth == null)
+            enemyHealth = hit.transform.GetComponentInParent<EnemyHealth>();
+
+        if (enemyHealth != null)
         {
-            HitTarget(hit.point);
-
-            Health normalHealth = hit.transform.GetComponent<Health>();
-
-            if (normalHealth != null)
-            {
-                normalHealth.TakeDamage(attackDamage);
-                return;
-            }
-
-            EnemyHealth enemyHealth = hit.transform.GetComponent<EnemyHealth>();
-
-            if (enemyHealth == null)
-                enemyHealth = hit.transform.GetComponentInParent<EnemyHealth>();
-
-            if (enemyHealth != null)
-            {
-                enemyHealth.TakeDamage(attackDamage);
-            }
+            enemyHealth.TakeDamage(attackDamage);
         }
     }
 

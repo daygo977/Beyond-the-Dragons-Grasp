@@ -1,13 +1,11 @@
 using UnityEngine;
+using Unity.Netcode;
 
-public class ChestInteractable : MonoBehaviour, IHoldInteractable
+public class ChestInteractable : NetworkBehaviour, IHoldInteractable
 {
     [Header("Prompt Text")]
-    [TextArea]
-    public string closedPrompt = "Hold E to open chest";
-
-    [TextArea]
-    public string openedPrompt = "";
+    [TextArea] public string closedPrompt = "Hold E to open chest";
+    [TextArea] public string openedPrompt = "";
 
     [Header("Hold Settings")]
     public float holdDuration = 1.5f;
@@ -27,27 +25,54 @@ public class ChestInteractable : MonoBehaviour, IHoldInteractable
     [Range(0f, 1f)] public float openVolume = 1f;
 
     private float holdTimer;
-    private bool isOpen;
     private bool isHoldingSoundPlaying;
 
-    void Start()
-    {
-        if (closedChestModel != null)
-            closedChestModel.SetActive(true);
+    //Multiplayer edit, changed bool to network variable bool
+    private NetworkVariable<bool> isOpen = new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
-        if (openedChestModel != null)
-            openedChestModel.SetActive(false);
-
-        if (healthPickupObject != null)
-            healthPickupObject.SetActive(false);
-
+    //Multiplayer edit, added private
+    private void Start()
+    {   
+        //Multiplayer edit
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
+
+        ApplyChestVisualState();
+    }
+
+    //Multiplayer new funciton
+    public override void OnNetworkSpawn()
+    {
+        isOpen.OnValueChanged += OnOpenChanged;
+        ApplyChestVisualState();
+    }
+
+    //Multiplayer new funciton
+    public override void OnNetworkDespawn()
+    {
+        isOpen.OnValueChanged -= OnOpenChanged;
+    }
+
+    //Multiplayer new funciton
+    private void OnOpenChanged(bool oldValue, bool newValue)
+    {
+        ApplyChestVisualState();
+
+        if (newValue)
+        {
+            StopHoldSound();
+            PlayRandomOpenSound();
+        }
     }
 
     public string GetPromptText()
     {
-        if (isOpen)
+        //Multiplayer edit, added .Value
+        if (isOpen.Value)
             return openedPrompt;
 
         return closedPrompt;
@@ -55,50 +80,59 @@ public class ChestInteractable : MonoBehaviour, IHoldInteractable
 
     public void Interact()
     {
+        // Chest uses hold interaction only.
     }
 
     public void HoldInteract(float deltaTime)
-    {
-        if (isOpen) return;
+    {   
+        //Multiplayer edit, added .Value
+        if (isOpen.Value) return;
 
         holdTimer += deltaTime;
-
         PlayHoldSound();
 
         if (holdTimer >= holdDuration)
-            OpenChest();
+        {
+            //Multiplayer edit, 
+            holdTimer = holdDuration;
+            StopHoldSound();
+            RequestOpenChestServerRpc();
+        }
+    }
+
+    //Multiplayer new ServerRpc (client to server) function
+    [ServerRpc(RequireOwnership = false)]
+    private void RequestOpenChestServerRpc()
+    {
+        if (isOpen.Value) return;
+
+        isOpen.Value = true;
     }
 
     public void ResetHold()
     {
-        if (isOpen) return;
+        //Multiplayer edit, added .Value
+        if (isOpen.Value) return;
 
         holdTimer = 0f;
         StopHoldSound();
     }
 
-    void OpenChest()
+    //Multiplayer new function
+    private void ApplyChestVisualState()
     {
-        if (isOpen) return;
-
-        isOpen = true;
-        holdTimer = holdDuration;
-
-        StopHoldSound();
-
         if (closedChestModel != null)
-            closedChestModel.SetActive(false);
+            closedChestModel.SetActive(!isOpen.Value);
 
         if (openedChestModel != null)
-            openedChestModel.SetActive(true);
+            openedChestModel.SetActive(isOpen.Value);
 
         if (healthPickupObject != null)
-            healthPickupObject.SetActive(true);
-
-        PlayRandomOpenSound();
+            healthPickupObject.SetActive(isOpen.Value);
     }
 
-    void PlayHoldSound()
+    //Multiplayer new function
+    private void PlayHoldSound()
     {
         if (audioSource == null) return;
         if (holdSound == null) return;
@@ -112,7 +146,8 @@ public class ChestInteractable : MonoBehaviour, IHoldInteractable
         isHoldingSoundPlaying = true;
     }
 
-    void StopHoldSound()
+    //Multiplayer new function
+    private void StopHoldSound()
     {
         if (audioSource == null) return;
         if (!isHoldingSoundPlaying) return;
@@ -124,7 +159,8 @@ public class ChestInteractable : MonoBehaviour, IHoldInteractable
         isHoldingSoundPlaying = false;
     }
 
-    void PlayRandomOpenSound()
+    //Multiplayer new function
+    private void PlayRandomOpenSound()
     {
         if (openSounds == null || openSounds.Length == 0)
             return;

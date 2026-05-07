@@ -4,6 +4,7 @@ using TMPro;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class LobbyBrowseUI : MonoBehaviour
 {
@@ -17,6 +18,7 @@ public class LobbyBrowseUI : MonoBehaviour
     [SerializeField] private Button refreshButton;
     [SerializeField] private Button enterPasswordButton;
     [SerializeField] private Button cancelPasswordButton;
+    [SerializeField] private Button returnButton;
 
     [Header("Lobby List")]
     [SerializeField] private Transform lobbyListContent;
@@ -49,6 +51,8 @@ public class LobbyBrowseUI : MonoBehaviour
 
         if (cancelPasswordButton != null)
             cancelPasswordButton.onClick.AddListener(ClosePasswordPanel);
+        if (returnButton != null)
+            returnButton.onClick.AddListener(ReturnToMainMenu);
 
         //Password panel starts deactivated
         ClosePasswordPanel();
@@ -80,6 +84,8 @@ public class LobbyBrowseUI : MonoBehaviour
 
         if (cancelPasswordButton != null)
             cancelPasswordButton.onClick.RemoveListener(ClosePasswordPanel);
+        if (returnButton != null)
+            returnButton.onClick.RemoveListener(ReturnToMainMenu);
 
         if (UnityLobbyManager.Instance != null)
             UnityLobbyManager.Instance.OnAvailableLobbiesChanged -= ShowLobbies;
@@ -251,5 +257,10 @@ public class LobbyBrowseUI : MonoBehaviour
         //Load saved name into input field
         if (playerNameField != null && PlayerPrefs.HasKey(playerNameKey))
             playerNameField.text = PlayerPrefs.GetString(playerNameKey);
+    }
+
+    private void ReturnToMainMenu()
+    {
+        SceneManager.LoadScene("MainMenu");
     }
 }

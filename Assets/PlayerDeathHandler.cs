@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using Unity.Netcode;
 
 public class PlayerDeathHandler : MonoBehaviour
 {
@@ -25,7 +26,7 @@ public class PlayerDeathHandler : MonoBehaviour
 
     private bool hasDied;
 
-    void Awake()
+    private void Awake()
     {
         if (playerHealth == null)
             playerHealth = GetComponent<Health>();
@@ -40,35 +41,40 @@ public class PlayerDeathHandler : MonoBehaviour
             playerAnimator = GetComponentInChildren<Animator>();
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
         if (playerHealth != null)
             playerHealth.OnDied += HandleDeath;
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         if (playerHealth != null)
             playerHealth.OnDied -= HandleDeath;
     }
 
-    void Start()
+    //Multiplayer edit, new logic
+    private void Start()
     {
         if (deathPanel != null)
             deathPanel.SetActive(false);
+
+        if (playerHealth != null && playerHealth.IsDead)
+            HandleDeath();
     }
 
-    void HandleDeath()
+    //Multiplayer new function
+    private void Update()
+    {
+        if (!hasDied && playerHealth != null && playerHealth.IsDead)
+            HandleDeath();
+    }
+
+    private void HandleDeath()
     {
         if (hasDied) return;
 
         hasDied = true;
-
-        if (playerController != null)
-            playerController.enabled = false;
-
-        if (characterController != null)
-            characterController.enabled = false;
 
         if (playerAnimator != null)
         {
@@ -76,10 +82,32 @@ public class PlayerDeathHandler : MonoBehaviour
             playerAnimator.SetTrigger(deathTriggerName);
         }
 
-        ShowDeathScreen();
+        //Multiplayer edit, new logic
+        if (IsLocalPlayer())
+        {
+            if (playerController != null)
+                playerController.enabled = false;
 
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+            if (characterController != null)
+                characterController.enabled = false;
+
+            ShowDeathScreen();
+
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+    }
+
+    //Multiplayer new function
+    private bool IsLocalPlayer()
+    {
+        if (playerHealth == null)
+            return false;
+
+        if (!playerHealth.IsSpawned)
+            return true;
+
+        return playerHealth.IsOwner;
     }
 
     void ShowDeathScreen()
