@@ -105,6 +105,7 @@ GameObject:
   - component: {fileID: 7812193591593363499}
   - component: {fileID: 6303127789679710061}
   - component: {fileID: 5185631056550770878}
+  - component: {fileID: -8696409225240320909}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -181,8 +182,6 @@ MonoBehaviour:
   maxFallDamage: 100
   cam: {fileID: 1788623315372294392}
   sensitivity: 0.05
-  firstPersonVisualRoot: {fileID: 0}
-  thirdPersonVisualRoot: {fileID: 0}
   interactDistance: 3
   interactLayer:
     serializedVersion: 2
@@ -345,8 +344,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4891f089095705b46a795a201288fee7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
   maxHealth: 100
-  currentHealth: 0
+  currentHealth:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 100
+  isDead:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
   destroyOnDeath: 0
   disableOnDeath: 0
   audioSource: {fileID: 0}
@@ -433,6 +442,52 @@ MonoBehaviour:
   - {fileID: 1035992834876975779}
   - {fileID: 2252962623866802610}
   - {fileID: 9085700259941105668}
+--- !u!114 &-8696409225240320909
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1788623314744564116}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkTransformExpanded: 0
+  AutoOwnerAuthorityTickOffset: 1
+  PositionInterpolationType: 0
+  RotationInterpolationType: 0
+  ScaleInterpolationType: 0
+  PositionLerpSmoothing: 1
+  PositionMaxInterpolationTime: 0.1
+  RotationLerpSmoothing: 1
+  RotationMaxInterpolationTime: 0.1
+  ScaleLerpSmoothing: 1
+  ScaleMaxInterpolationTime: 0.1
+  AuthorityMode: 1
+  TickSyncChildren: 0
+  UseUnreliableDeltas: 0
+  SyncPositionX: 1
+  SyncPositionY: 1
+  SyncPositionZ: 1
+  SyncRotAngleX: 1
+  SyncRotAngleY: 1
+  SyncRotAngleZ: 1
+  SyncScaleX: 0
+  SyncScaleY: 0
+  SyncScaleZ: 0
+  PositionThreshold: 0.001
+  RotAngleThreshold: 0.01
+  ScaleThreshold: 0.01
+  UseQuaternionSynchronization: 0
+  UseQuaternionCompression: 0
+  UseHalfFloatPrecision: 0
+  InLocalSpace: 0
+  SwitchTransformSpaceWhenParented: 0
+  Interpolate: 1
+  SlerpPosition: 0
 --- !u!1 &1788623315372294390
 GameObject:
   m_ObjectHideFlags: 0
@@ -2343,13 +2398,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4884770922061884262, guid: e5c246663838d0542aa1a67e8c7216e6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7819555866933932213}
   m_SourcePrefab: {fileID: 100100000, guid: e5c246663838d0542aa1a67e8c7216e6, type: 3}
 --- !u!1 &8716254751591352906 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 4884770922061884262, guid: e5c246663838d0542aa1a67e8c7216e6, type: 3}
   m_PrefabInstance: {fileID: 4268403928075215148}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &7819555866933932213
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8716254751591352906}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8d0727d5ae3244e3b569694d3912374, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkAnimatorExpanded: 0
+  AuthorityMode: 1
+  m_Animator: {fileID: 8716254751591352907}
+  TransitionStateInfoList: []
+  AnimatorParameterEntries:
+    ParameterEntries:
+    - name: IsMoving
+      NameHash: 120489994
+      Synchronize: 1
+      ParameterType: 4
+    - name: IsRunning
+      NameHash: -887662580
+      Synchronize: 1
+      ParameterType: 4
+    - name: IsGrounded
+      NameHash: 507951781
+      Synchronize: 1
+      ParameterType: 4
+    - name: Attack
+      NameHash: 1080829965
+      Synchronize: 1
+      ParameterType: 9
+    - name: Jump
+      NameHash: 125937960
+      Synchronize: 1
+      ParameterType: 9
+    - name: MoveX
+      NameHash: 675470966
+      Synchronize: 1
+      ParameterType: 1
+    - name: MoveY
+      NameHash: 1598418656
+      Synchronize: 1
+      ParameterType: 1
+    - name: IsDead
+      NameHash: 1270110494
+      Synchronize: 1
+      ParameterType: 4
+    - name: Die
+      NameHash: 20298039
+      Synchronize: 1
+      ParameterType: 9
+  AnimatorParametersExpanded: 0
 --- !u!95 &8716254751591352907 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 4884770922061884263, guid: e5c246663838d0542aa1a67e8c7216e6, type: 3}
@@ -2423,7 +2537,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4676523738748503982, guid: f141649e75885ab429723517cd7afcd8, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5350660236634437264}
   m_SourcePrefab: {fileID: 100100000, guid: f141649e75885ab429723517cd7afcd8, type: 3}
 --- !u!4 &9085700259941105666 stripped
 Transform:
@@ -2433,6 +2550,67 @@ Transform:
 --- !u!1 &9085700259941105668 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 4676523738748503982, guid: f141649e75885ab429723517cd7afcd8, type: 3}
+  m_PrefabInstance: {fileID: 4535333387145021354}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &5350660236634437264
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9085700259941105668}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8d0727d5ae3244e3b569694d3912374, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkAnimatorExpanded: 0
+  AuthorityMode: 1
+  m_Animator: {fileID: 9085700259941105669}
+  TransitionStateInfoList: []
+  AnimatorParameterEntries:
+    ParameterEntries:
+    - name: IsMoving
+      NameHash: 120489994
+      Synchronize: 1
+      ParameterType: 4
+    - name: IsRunning
+      NameHash: -887662580
+      Synchronize: 1
+      ParameterType: 4
+    - name: IsGrounded
+      NameHash: 507951781
+      Synchronize: 1
+      ParameterType: 4
+    - name: Attack
+      NameHash: 1080829965
+      Synchronize: 1
+      ParameterType: 9
+    - name: Jump
+      NameHash: 125937960
+      Synchronize: 1
+      ParameterType: 9
+    - name: MoveX
+      NameHash: 675470966
+      Synchronize: 1
+      ParameterType: 1
+    - name: MoveY
+      NameHash: 1598418656
+      Synchronize: 1
+      ParameterType: 1
+    - name: IsDead
+      NameHash: 1270110494
+      Synchronize: 1
+      ParameterType: 4
+    - name: Die
+      NameHash: 20298039
+      Synchronize: 1
+      ParameterType: 9
+  AnimatorParametersExpanded: 0
+--- !u!95 &9085700259941105669 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 4676523738748503983, guid: f141649e75885ab429723517cd7afcd8, type: 3}
   m_PrefabInstance: {fileID: 4535333387145021354}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &5235671979275029544
@@ -2498,7 +2676,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6335709793389878682, guid: e84c5134ef62d4045a36bcf066d780e6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1786168453821077051}
   m_SourcePrefab: {fileID: 100100000, guid: e84c5134ef62d4045a36bcf066d780e6, type: 3}
 --- !u!4 &1445639251002673928 stripped
 Transform:
@@ -2508,6 +2689,67 @@ Transform:
 --- !u!1 &2252962623866802610 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6335709793389878682, guid: e84c5134ef62d4045a36bcf066d780e6, type: 3}
+  m_PrefabInstance: {fileID: 5235671979275029544}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1786168453821077051
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2252962623866802610}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8d0727d5ae3244e3b569694d3912374, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkAnimatorExpanded: 0
+  AuthorityMode: 1
+  m_Animator: {fileID: 4823317722091590002}
+  TransitionStateInfoList: []
+  AnimatorParameterEntries:
+    ParameterEntries:
+    - name: IsMoving
+      NameHash: 120489994
+      Synchronize: 1
+      ParameterType: 4
+    - name: IsRunning
+      NameHash: -887662580
+      Synchronize: 1
+      ParameterType: 4
+    - name: IsGrounded
+      NameHash: 507951781
+      Synchronize: 1
+      ParameterType: 4
+    - name: Attack
+      NameHash: 1080829965
+      Synchronize: 1
+      ParameterType: 9
+    - name: Jump
+      NameHash: 125937960
+      Synchronize: 1
+      ParameterType: 9
+    - name: MoveX
+      NameHash: 675470966
+      Synchronize: 1
+      ParameterType: 1
+    - name: MoveY
+      NameHash: 1598418656
+      Synchronize: 1
+      ParameterType: 1
+    - name: IsDead
+      NameHash: 1270110494
+      Synchronize: 1
+      ParameterType: 4
+    - name: Die
+      NameHash: 20298039
+      Synchronize: 1
+      ParameterType: 9
+  AnimatorParametersExpanded: 0
+--- !u!95 &4823317722091590002 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 740571681075633498, guid: e84c5134ef62d4045a36bcf066d780e6, type: 3}
   m_PrefabInstance: {fileID: 5235671979275029544}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &6773609014142100145
@@ -2658,11 +2900,19 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8832964881151639486, guid: c26e8c19d8cdac1479dfd6f1b18b3864, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6451979311261910362}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8832964881147904658, guid: c26e8c19d8cdac1479dfd6f1b18b3864, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4815754735443312894}
   m_SourcePrefab: {fileID: 100100000, guid: c26e8c19d8cdac1479dfd6f1b18b3864, type: 3}
 --- !u!4 &1035992834872203151 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8832964881151639486, guid: c26e8c19d8cdac1479dfd6f1b18b3864, type: 3}
+  m_PrefabInstance: {fileID: 8427478709080123441}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &1035992834876975776 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 8832964881147904657, guid: c26e8c19d8cdac1479dfd6f1b18b3864, type: 3}
   m_PrefabInstance: {fileID: 8427478709080123441}
   m_PrefabAsset: {fileID: 0}
 --- !u!4 &1035992834876975777 stripped
@@ -2675,3 +2925,59 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 8832964881147904658, guid: c26e8c19d8cdac1479dfd6f1b18b3864, type: 3}
   m_PrefabInstance: {fileID: 8427478709080123441}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &4815754735443312894
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1035992834876975779}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8d0727d5ae3244e3b569694d3912374, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkAnimatorExpanded: 0
+  AuthorityMode: 1
+  m_Animator: {fileID: 1035992834876975776}
+  TransitionStateInfoList: []
+  AnimatorParameterEntries:
+    ParameterEntries:
+    - name: IsMoving
+      NameHash: 120489994
+      Synchronize: 1
+      ParameterType: 4
+    - name: IsRunning
+      NameHash: -887662580
+      Synchronize: 1
+      ParameterType: 4
+    - name: IsGrounded
+      NameHash: 507951781
+      Synchronize: 1
+      ParameterType: 4
+    - name: Attack
+      NameHash: 1080829965
+      Synchronize: 1
+      ParameterType: 9
+    - name: Jump
+      NameHash: 125937960
+      Synchronize: 1
+      ParameterType: 9
+    - name: MoveX
+      NameHash: 675470966
+      Synchronize: 1
+      ParameterType: 1
+    - name: MoveY
+      NameHash: 1598418656
+      Synchronize: 1
+      ParameterType: 1
+    - name: IsDead
+      NameHash: 1270110494
+      Synchronize: 1
+      ParameterType: 4
+    - name: Die
+      NameHash: 20298039
+      Synchronize: 1
+      ParameterType: 9
+  AnimatorParametersExpanded: 0

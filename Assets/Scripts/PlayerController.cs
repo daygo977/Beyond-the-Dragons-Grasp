@@ -20,6 +20,9 @@ public class PlayerController : NetworkBehaviour
     [Header("First Person Animation")]
     public Animator firstPersonAnimator;
 
+    PlayerModelVisibility modelVisibility;
+    Unity.Netcode.Components.NetworkAnimator thirdPersonNetworkAnimator;
+
     [Header("Controller")]
     public float moveSpeed = 3.5f;
     public float sprintSpeed = 6.0f;
@@ -110,6 +113,8 @@ public class PlayerController : NetworkBehaviour
         //Multiplayer edit
         if (cam != null)
             audioListener = cam.GetComponent<AudioListener>();
+
+        modelVisibility = GetComponent<PlayerModelVisibility>();
     }
 
     //New multiplayer edit
@@ -148,6 +153,10 @@ public class PlayerController : NetworkBehaviour
 
     void Update()
     {
+        if (!IsOwner) return;
+
+        RefreshThirdPersonAnimator();
+
         //Multiplayer edit: checks local player is owner for own instance
         if (!IsOwner) return;
 
@@ -455,7 +464,9 @@ public class PlayerController : NetworkBehaviour
         {
             _playerVelocity.y = Mathf.Sqrt(jumpHeight * -3.0f * gravity);
 
-            if (thirdPersonAnimator != null)
+            if (thirdPersonNetworkAnimator != null)
+                thirdPersonNetworkAnimator.SetTrigger(jumpTriggerParameter);
+            else if (thirdPersonAnimator != null)
                 thirdPersonAnimator.SetTrigger(jumpTriggerParameter);
         }
     }
@@ -513,7 +524,9 @@ public class PlayerController : NetworkBehaviour
 
         PlayRandomSound(swordSwingClips, swordSwingVolume);
 
-        if (thirdPersonAnimator != null)
+        if (thirdPersonNetworkAnimator != null)
+            thirdPersonNetworkAnimator.SetTrigger(attackTriggerParameter);
+        else if (thirdPersonAnimator != null)
             thirdPersonAnimator.SetTrigger(attackTriggerParameter);
 
         if (attackCount == 0)
@@ -581,5 +594,19 @@ public class PlayerController : NetworkBehaviour
 
         audioSource.pitch = Random.Range(0.9f, 1.1f);
         audioSource.PlayOneShot(clip, volume);
+    }
+
+    //Multiplayer new function,
+    //Signature: 05/07/2026 11:36AM
+    void RefreshThirdPersonAnimator()
+    {
+        if (modelVisibility == null)
+            return;
+
+        if (modelVisibility.ActiveThirdPersonAnimator != null)
+            thirdPersonAnimator = modelVisibility.ActiveThirdPersonAnimator;
+
+        if (modelVisibility.ActiveThirdPersonNetworkAnimator != null)
+            thirdPersonNetworkAnimator = modelVisibility.ActiveThirdPersonNetworkAnimator;
     }
 }

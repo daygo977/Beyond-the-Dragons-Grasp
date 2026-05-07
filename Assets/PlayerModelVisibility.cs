@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using Unity.Services.Authentication;
 using Unity.Services.Lobbies.Models;
 using Unity.Collections;
@@ -12,6 +13,9 @@ public class PlayerModelVisibility : NetworkBehaviour
 
     [Header("Third Person Models")]
     public GameObject[] thirdPersonModels = new GameObject[4];
+
+    public Animator ActiveThirdPersonAnimator { get; private set; }
+    public NetworkAnimator ActiveThirdPersonNetworkAnimator { get; private set; }
 
     private NetworkVariable<int> selectedModelIndex = new NetworkVariable<int>(
         -1,
@@ -46,7 +50,6 @@ public class PlayerModelVisibility : NetworkBehaviour
     private void SubmitPlayerIdServerRpc(FixedString64Bytes authPlayerId)
     {
         int modelIndex = GetModelIndexFromLobby(authPlayerId.ToString());
-
         selectedModelIndex.Value = modelIndex;
     }
 
@@ -61,13 +64,10 @@ public class PlayerModelVisibility : NetworkBehaviour
                 Player lobbyPlayer = UnityLobbyManager.Instance.CurrentLobby.Players[i];
 
                 if (lobbyPlayer.Id == authPlayerId)
-                {
                     return Mathf.Clamp(i, 0, thirdPersonModels.Length - 1);
-                }
             }
         }
 
-        // Fallback if lobby data is missing.
         return Mathf.Clamp((int)OwnerClientId, 0, thirdPersonModels.Length - 1);
     }
 
@@ -81,13 +81,45 @@ public class PlayerModelVisibility : NetworkBehaviour
         if (modelIndex < 0)
             modelIndex = Mathf.Clamp((int)OwnerClientId, 0, thirdPersonModels.Length - 1);
 
+        ActiveThirdPersonAnimator = null;
+        ActiveThirdPersonNetworkAnimator = null;
+
         for (int i = 0; i < thirdPersonModels.Length; i++)
         {
-            if (thirdPersonModels[i] == null)
+            GameObject model = thirdPersonModels[i];
+
+            if (model == null)
                 continue;
 
-            bool shouldShowModel = !IsOwner && i == modelIndex;
-            thirdPersonModels[i].SetActive(shouldShowModel);
+            // IMPORTANT:
+            // Keep model objects active so Animator and NetworkAnimator keep running.
+            model.SetActive(true);
+
+            bool isSelectedModel = i == modelIndex;
+
+            if (isSelectedModel)
+            {
+                ActiveThirdPersonAnimator = model.GetComponentInChildren<Animator>(true);
+                ActiveThirdPersonNetworkAnimator = model.GetComponentInChildren<NetworkAnimator>(true);
+            }
+
+            // Owner should not see their own third-person body.
+            // Remote players should see only the selected third-person body.
+            bool renderVisible = !IsOwner && isSelectedModel;
+
+            SetRenderersVisible(model, renderVisible);
+        }
+    }
+    
+    //Multiplayer new function,
+    //Signature: 05/07/2026 11:31AM
+    private void SetRenderersVisible(GameObject root, bool visible)
+    {
+        Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+
+        foreach (Renderer renderer in renderers)
+        {
+            renderer.enabled = visible;
         }
     }
 }
