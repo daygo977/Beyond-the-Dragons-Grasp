@@ -20,6 +20,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/MainMenu.unity
     guid: 35fd67990d57bc74ca5e64f2aa4aaecc
+  - enabled: 1
+    path: Assets/Scenes/Even More Updated Map - JO.unity
+    guid: e1168b793cad95949a14d97eab675170
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

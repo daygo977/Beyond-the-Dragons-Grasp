@@ -48,6 +48,7 @@ public class PauseMenuManager : MonoBehaviour
     {
         if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
         {
+            Debug.Log("ESC pressed, toggling pause");
             TogglePause();
         }
     }
