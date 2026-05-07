@@ -10,7 +10,8 @@ public class PlayerController : MonoBehaviour
     PlayerInput.MainActions input;
 
     CharacterController controller;
-    Animator animator;
+    [Header("First Person Animation")]
+    public Animator firstPersonAnimator;
     AudioSource audioSource;
     Health playerHealth;
 
@@ -59,6 +60,16 @@ public class PlayerController : MonoBehaviour
     [Range(0f, 1f)] public float swordSwingVolume = 0.8f;
     [Range(0f, 1f)] public float hitSoundVolume = 1f;
 
+    [Header("Third Person Model Animation")]
+    public Animator thirdPersonAnimator;
+    public string moveXParameter = "MoveX";
+    public string moveYParameter = "MoveY";
+    public string isMovingParameter = "IsMoving";
+    public string isRunningParameter = "IsRunning";
+    public string isGroundedParameter = "IsGrounded";
+    public string jumpTriggerParameter = "Jump";
+    public string attackTriggerParameter = "Attack";
+
     bool attacking = false;
     bool readyToAttack = true;
     int attackCount;
@@ -73,7 +84,8 @@ public class PlayerController : MonoBehaviour
     void Awake()
     {
         controller = GetComponent<CharacterController>();
-        animator = GetComponentInChildren<Animator>();
+        if (firstPersonAnimator == null)
+            firstPersonAnimator = GetComponentInChildren<Animator>();
         audioSource = GetComponent<AudioSource>();
         playerHealth = GetComponent<Health>();
 
@@ -101,7 +113,7 @@ public class PlayerController : MonoBehaviour
 
         if (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsPaused)
         {
-            ApplyVerticalMovementOnly();
+            SetPausedAnimationState();
 
             if (interactText != null)
                 interactText.text = "";
@@ -118,6 +130,7 @@ public class PlayerController : MonoBehaviour
                       moveInput.y > 0f;
 
         MoveInput(moveInput);
+        UpdateThirdPersonAnimator(moveInput);
         LookInput(lookInput);
 
         CheckForInteractable();
@@ -176,6 +189,35 @@ public class PlayerController : MonoBehaviour
         {
             playerHealth.TakeDamage(damage);
         }
+    }
+    void SetPausedAnimationState()
+    {
+        if (thirdPersonAnimator != null)
+        {
+            thirdPersonAnimator.SetFloat(moveXParameter, 0f);
+            thirdPersonAnimator.SetFloat(moveYParameter, 0f);
+            thirdPersonAnimator.SetBool(isMovingParameter, false);
+            thirdPersonAnimator.SetBool(isRunningParameter, false);
+            thirdPersonAnimator.SetBool(isGroundedParameter, true);
+        }
+
+        if (!attacking)
+            ChangeAnimationState(IDLE);
+    }
+    void UpdateThirdPersonAnimator(Vector2 moveInput)
+    {
+        if (thirdPersonAnimator == null) return;
+
+        if (moveInput.magnitude > 1f)
+            moveInput.Normalize();
+
+        bool moving = moveInput.sqrMagnitude > 0.01f;
+
+        thirdPersonAnimator.SetFloat(moveXParameter, moveInput.x);
+        thirdPersonAnimator.SetFloat(moveYParameter, moveInput.y);
+        thirdPersonAnimator.SetBool(isMovingParameter, moving);
+        thirdPersonAnimator.SetBool(isRunningParameter, isSprinting);
+        thirdPersonAnimator.SetBool(isGroundedParameter, isGrounded);
     }
 
     void LookInput(Vector2 inputValue)
@@ -242,6 +284,9 @@ public class PlayerController : MonoBehaviour
         if (isGrounded)
         {
             _playerVelocity.y = Mathf.Sqrt(jumpHeight * -3.0f * gravity);
+
+            if (thirdPersonAnimator != null)
+                thirdPersonAnimator.SetTrigger(jumpTriggerParameter);
         }
     }
 
@@ -253,10 +298,12 @@ public class PlayerController : MonoBehaviour
 
     public void ChangeAnimationState(string newState)
     {
+        if (firstPersonAnimator == null) return;
+        if (!firstPersonAnimator.gameObject.activeInHierarchy) return;
         if (currentAnimationState == newState) return;
 
         currentAnimationState = newState;
-        animator.CrossFadeInFixedTime(currentAnimationState, 0.2f);
+        firstPersonAnimator.CrossFadeInFixedTime(currentAnimationState, 0.2f);
     }
 
     void SetAnimations()
@@ -283,6 +330,9 @@ public class PlayerController : MonoBehaviour
         Invoke(nameof(AttackRaycast), attackDelay);
 
         PlayRandomSound(swordSwingClips, swordSwingVolume);
+
+        if (thirdPersonAnimator != null)
+            thirdPersonAnimator.SetTrigger(attackTriggerParameter);
 
         if (attackCount == 0)
         {
