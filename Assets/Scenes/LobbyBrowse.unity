@@ -710,6 +710,7 @@ MonoBehaviour:
   pulledRotation: {x: -45, y: 0, z: 0}
   audioSource: {fileID: 0}
   pullSound: {fileID: 0}
+  pullVolume: 1
 --- !u!1001 &10575653
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1418,6 +1419,7 @@ MonoBehaviour:
   pulledRotation: {x: -45, y: 0, z: 0}
   audioSource: {fileID: 0}
   pullSound: {fileID: 0}
+  pullVolume: 1
 --- !u!4 &29728516 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5614285791276712271, guid: 2e3cb70c0cc132f478be0216ea41f3af, type: 3}
@@ -13492,6 +13494,7 @@ MonoBehaviour:
   pulledRotation: {x: -45, y: 0, z: 0}
   audioSource: {fileID: 0}
   pullSound: {fileID: 0}
+  pullVolume: 1
 --- !u!4 &348602977 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4595880652613284, guid: 343a362cd2f920440a92d2c3068a04fc, type: 3}
@@ -13773,6 +13776,7 @@ MonoBehaviour:
   pulledRotation: {x: -45, y: 0, z: 0}
   audioSource: {fileID: 0}
   pullSound: {fileID: 0}
+  pullVolume: 1
 --- !u!1001 &357880932
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -28548,6 +28552,7 @@ MonoBehaviour:
   pulledRotation: {x: -45, y: 0, z: 0}
   audioSource: {fileID: 0}
   pullSound: {fileID: 0}
+  pullVolume: 1
 --- !u!1 &783988406
 GameObject:
   m_ObjectHideFlags: 0
@@ -53287,6 +53292,7 @@ MonoBehaviour:
   pulledRotation: {x: -45, y: 0, z: 0}
   audioSource: {fileID: 0}
   pullSound: {fileID: 0}
+  pullVolume: 1
 --- !u!1001 &1451773110
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -59472,6 +59478,7 @@ MonoBehaviour:
   pulledRotation: {x: -45, y: 0, z: 0}
   audioSource: {fileID: 0}
   pullSound: {fileID: 0}
+  pullVolume: 1
 --- !u!1001 &1604628977
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -76235,6 +76242,7 @@ MonoBehaviour:
   pulledRotation: {x: -45, y: 0, z: 0}
   audioSource: {fileID: 0}
   pullSound: {fileID: 0}
+  pullVolume: 1
 --- !u!1001 &2048131084
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -79649,7 +79657,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1102428727532551543, guid: 2abda124c5736594eb40f794a18ee9dc, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0.0000366438
+      value: 0.00007461543
       objectReference: {fileID: 0}
     - target: {fileID: 1277199353212778547, guid: 2abda124c5736594eb40f794a18ee9dc, type: 3}
       propertyPath: m_Pivot.x

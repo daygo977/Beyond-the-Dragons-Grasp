@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
 using Unity.Collections;
@@ -7,15 +8,15 @@ public class GameFlags : NetworkBehaviour
     public static GameFlags Instance;
 
     [Header("Global Flags")]
-    //Multiplayer edit, turned list to network list
     public NetworkList<FixedString64Bytes> collectedKeys;
+
+    private List<string> localCollectedKeys = new List<string>();
 
     void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
-            //Multiplayer edit
             collectedKeys = new NetworkList<FixedString64Bytes>();
         }
         else
@@ -24,13 +25,20 @@ public class GameFlags : NetworkBehaviour
         }
     }
 
-    //Multiplayer edit,
     public void AddKey(string keyId)
     {
-        if (!IsServer) return;
-
-        if (string.IsNullOrWhiteSpace(keyId)) 
+        if (string.IsNullOrWhiteSpace(keyId))
             return;
+
+        if (!IsSpawned)
+        {
+            if (!localCollectedKeys.Contains(keyId))
+                localCollectedKeys.Add(keyId);
+
+            return;
+        }
+
+        if (!IsServer) return;
 
         FixedString64Bytes fixedKeyId = keyId;
 
@@ -38,11 +46,13 @@ public class GameFlags : NetworkBehaviour
             collectedKeys.Add(fixedKeyId);
     }
 
-    //Multiplayer edit,
     public bool HasKey(string keyId)
     {
         if (string.IsNullOrWhiteSpace(keyId))
             return false;
+
+        if (!IsSpawned)
+            return localCollectedKeys.Contains(keyId);
 
         if (collectedKeys == null)
             return false;

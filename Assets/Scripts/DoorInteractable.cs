@@ -10,8 +10,10 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
     [Header("Prompt Text")]
     [TextArea]
     public string defaultPrompt = "Press E to open";
+
     [TextArea]
     public string unlockedPrompt = "Use key to open door";
+
     [TextArea]
     public string failPrompt = "You do not have the key.";
 
@@ -27,9 +29,7 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
     [Header("Lock Object")]
     public GameObject lockObject;
     public bool disableLockAfterDoorOpens = true;
-    public float doorOpenDistanceThreshold = 1.95f;
     public float lockHideDelayAfterOpeningStarts = 0.15f;
-    private Coroutine hideLockRoutine;
 
     [Header("Audio")]
     public AudioSource audioSource;
@@ -38,24 +38,27 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
 
     private string temporaryPrompt = "";
     private Coroutine resetPromptRoutine;
+    private Coroutine hideLockRoutine;
 
-    //Multiplayer edit, changed from bool to network variable bool
     private NetworkVariable<bool> isOpen = new NetworkVariable<bool>(
         false,
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
     );
 
+    private bool isOpenLocal;
+    private bool playedOpenSound;
+
     private Vector3 closedPosition;
     private Vector3 openPosition;
 
-    private bool playedOpenSound;
-
-    //Multiplayer edit, added private
     private void Start()
     {
         if (doorToMove == null)
-        doorToMove = transform;
+            doorToMove = transform;
+
+        if (lockObject == null)
+            lockObject = gameObject;
 
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
@@ -63,39 +66,35 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
         closedPosition = doorToMove.position;
         openPosition = closedPosition + Vector3.up * moveUpAmount;
 
-        //Multiplayer edit,
         ApplyDoorVisualState();
     }
-    
-    //Multiplayer new function
+
     public override void OnNetworkSpawn()
     {
         isOpen.OnValueChanged += OnOpenStateChanged;
         ApplyDoorVisualState();
     }
 
-    //Multiplayer new function
     public override void OnNetworkDespawn()
     {
         isOpen.OnValueChanged -= OnOpenStateChanged;
     }
 
-    //Multiplayer new function
     private void Update()
     {
-        Vector3 target = isOpen.Value ? openPosition : closedPosition;
+        if (doorToMove == null)
+            return;
 
-        if (doorToMove != null)
-        {
-            doorToMove.position = Vector3.MoveTowards(
-                doorToMove.position,
-                target,
-                moveSpeed * Time.deltaTime
-            );
-        }
+        bool open = IsSpawned ? isOpen.Value : isOpenLocal;
+        Vector3 target = open ? openPosition : closedPosition;
+
+        doorToMove.position = Vector3.MoveTowards(
+            doorToMove.position,
+            target,
+            moveSpeed * Time.deltaTime
+        );
     }
 
-    //Multiplayer new function
     private void OnOpenStateChanged(bool oldValue, bool newValue)
     {
         if (newValue)
@@ -113,6 +112,7 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
         }
         else
         {
+            playedOpenSound = false;
             ShowLockObject();
         }
     }
@@ -122,11 +122,12 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
         if (!string.IsNullOrEmpty(temporaryPrompt))
             return temporaryPrompt;
 
-        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.HasKey(requiredKeyId);
+        bool open = IsSpawned ? isOpen.Value : isOpenLocal;
 
-        //Multiplayer edit, basic logic
-        if (isOpen.Value)
+        if (open)
             return "";
+
+        bool hasKey = GameFlags.Instance != null && GameFlags.Instance.HasKey(requiredKeyId);
 
         if (requiresKey && hasKey)
             return unlockedPrompt;
@@ -136,20 +137,40 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
 
     public void Interact()
     {
-        //Multiplayer edit,
-        if (!IsServer) return;
+        if (!IsSpawned)
+        {
+            if (isOpenLocal)
+                return;
 
+            bool hasKeyLocal = GameFlags.Instance != null && GameFlags.Instance.HasKey(requiredKeyId);
+
+            if (!requiresKey || hasKeyLocal)
+            {
+                isOpenLocal = true;
+                PlayOpenSoundLocal();
+
+                if (hideLockRoutine != null)
+                    StopCoroutine(hideLockRoutine);
+
+                hideLockRoutine = StartCoroutine(HideLockAfterDoorOpens());
+            }
+            else
+            {
+                ShowFailPromptLocal();
+            }
+
+            return;
+        }
+
+        if (!IsServer) return;
         if (isOpen.Value) return;
 
         bool hasKey = GameFlags.Instance != null && GameFlags.Instance.HasKey(requiredKeyId);
 
         if (!requiresKey || hasKey)
-        {
             isOpen.Value = true;
-        }
     }
 
-    //Multiplayer new function
     public bool CanOpen()
     {
         if (!requiresKey)
@@ -157,17 +178,17 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
 
         return GameFlags.Instance != null && GameFlags.Instance.HasKey(requiredKeyId);
     }
-    
-    //Multiplayer new function
+
     public void ShowFailPromptLocal()
     {
         ShowTemporaryPrompt(failPrompt);
     }
 
-    //Multiplayer new function
     private void ApplyDoorVisualState()
     {
-        if (isOpen.Value)
+        bool open = IsSpawned ? isOpen.Value : isOpenLocal;
+
+        if (open)
         {
             if (hideLockRoutine != null)
                 StopCoroutine(hideLockRoutine);
@@ -180,7 +201,6 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
         }
     }
 
-    //Multiplayer new function
     private IEnumerator HideLockAfterDoorOpens()
     {
         if (!disableLockAfterDoorOpens)
@@ -189,7 +209,6 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
         if (lockObject == null)
             yield break;
 
-        // Wait one frame so the door has actually started opening.
         yield return null;
 
         if (lockHideDelayAfterOpeningStarts > 0f)
@@ -199,7 +218,6 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
         hideLockRoutine = null;
     }
 
-    //Multiplayer new function
     private void ShowLockObject()
     {
         if (lockObject == null)
@@ -208,7 +226,6 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
         SetLockVisible(true);
     }
 
-    //Multiplayer new function
     private void HideLockObject()
     {
         if (lockObject == null)
@@ -217,26 +234,20 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
         SetLockVisible(false);
     }
 
-    //Multiplayer new function
     private void SetLockVisible(bool visible)
     {
         if (lockObject == null)
             return;
 
-        // If the lock object is the same object that owns DoorInteractable,
-        // do NOT SetActive(false), because that disables this script.
-        // Instead, hide renderers and disable colliders.
         if (lockObject == gameObject)
         {
             SetRenderersAndColliders(lockObject, visible);
             return;
         }
 
-        // If the lock is a separate child/object, this is safe.
         lockObject.SetActive(visible);
     }
 
-    //Multiplayer new function
     private void SetRenderersAndColliders(GameObject target, bool visible)
     {
         Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
@@ -260,7 +271,6 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
         }
     }
 
-    //Multiplayer edit, added private
     private void ShowTemporaryPrompt(string message)
     {
         temporaryPrompt = message;
@@ -271,7 +281,6 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
         resetPromptRoutine = StartCoroutine(ResetPromptAfterDelay());
     }
 
-    //Multiplayer edit, added private
     private IEnumerator ResetPromptAfterDelay()
     {
         yield return new WaitForSeconds(failMessageDuration);
@@ -279,7 +288,6 @@ public class DoorInteractable : NetworkBehaviour, IInteractable
         resetPromptRoutine = null;
     }
 
-    //Multiplayer new function
     private void PlayOpenSoundLocal()
     {
         if (gateOpenSound == null)

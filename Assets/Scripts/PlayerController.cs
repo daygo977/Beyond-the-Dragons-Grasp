@@ -1,9 +1,6 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
-//Multiplayer edit
 using Unity.Netcode;
 
 public class PlayerController : NetworkBehaviour
@@ -13,7 +10,6 @@ public class PlayerController : NetworkBehaviour
 
     CharacterController controller;
     AudioSource audioSource;
-    //Multiplayer edit
     AudioListener audioListener;
     Health playerHealth;
 
@@ -104,24 +100,26 @@ public class PlayerController : NetworkBehaviour
 
         AssignInputs();
 
+        if (cam != null)
+            audioListener = cam.GetComponent<AudioListener>();
+
+        modelVisibility = GetComponent<PlayerModelVisibility>();
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
         if (interactText != null)
             interactText.text = "";
-
-        //Multiplayer edit
-        if (cam != null)
-            audioListener = cam.GetComponent<AudioListener>();
-
-        modelVisibility = GetComponent<PlayerModelVisibility>();
     }
 
-    //New multiplayer edit
-    //Local player owns camera, input and audio listener
+    bool HasControl()
+    {
+        return !IsSpawned || IsOwner;
+    }
+
     public override void OnNetworkSpawn()
     {
-        if (IsOwner)
+        if (HasControl())
         {
             input.Enable();
 
@@ -153,20 +151,18 @@ public class PlayerController : NetworkBehaviour
 
     void Update()
     {
-        if (!IsOwner) return;
+        if (!HasControl()) return;
 
         RefreshThirdPersonAnimator();
 
-        //Multiplayer edit: checks local player is owner for own instance
-        if (!IsOwner) return;
+        if (controller == null)
+            return;
 
         wasGrounded = isGrounded;
         isGrounded = controller.isGrounded;
 
         if (!wasGrounded && isGrounded)
-        {
             CheckFallDamage();
-        }
 
         if (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsPaused)
         {
@@ -213,9 +209,7 @@ public class PlayerController : NetworkBehaviour
     void ApplyGravity()
     {
         if (isGrounded && _playerVelocity.y < 0f)
-        {
             _playerVelocity.y = -2f;
-        }
 
         _playerVelocity.y += gravity * Time.deltaTime;
         controller.Move(_playerVelocity * Time.deltaTime);
@@ -234,14 +228,15 @@ public class PlayerController : NetworkBehaviour
         int damage = Mathf.RoundToInt((landingSpeed - fallDamageThreshold) * fallDamageMultiplier);
         damage = Mathf.Clamp(damage, 0, maxFallDamage);
 
-        if (damage > 0)
-        {
-            //Multiplayer edit, server should change player health
+        if (damage <= 0)
+            return;
+
+        if (!IsSpawned)
+            playerHealth.TakeDamage(damage);
+        else
             RequestSelfDamageServerRpc(damage);
-        }
     }
 
-    //Multiplayer new ServerRpc function
     [ServerRpc]
     void RequestSelfDamageServerRpc(int damageAmount)
     {
@@ -286,6 +281,8 @@ public class PlayerController : NetworkBehaviour
 
     void LookInput(Vector2 inputValue)
     {
+        if (cam == null) return;
+
         float mouseX = inputValue.x;
         float mouseY = inputValue.y;
 
@@ -301,9 +298,11 @@ public class PlayerController : NetworkBehaviour
         currentInteractable = null;
         currentHoldInteractable = null;
 
+        if (cam == null)
+            return;
+
         if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactLayer))
         {
-            //Multiplayer edit, can change if mistake, remove InParent text
             MonoBehaviour[] behaviours = hit.collider.GetComponents<MonoBehaviour>();
 
             foreach (var behaviour in behaviours)
@@ -353,29 +352,32 @@ public class PlayerController : NetworkBehaviour
         }
 
         if (Keyboard.current.eKey.wasPressedThisFrame)
-        {
             TryInteract();
-        }
     }
 
-    //Multiplayer edit, key and door interaction should occur on server level
-    //Uses newly added ServerRpc (client to server), and ClientRpc (server to client)
     void TryInteract()
     {
-        if (!IsOwner) return;
+        if (!HasControl()) return;
+        if (cam == null) return;
 
         if (!Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactLayer))
             return;
 
-        NetworkObject networkObject = hit.collider.GetComponentInParent<NetworkObject>();
+        bool networkRunning = IsSpawned &&
+                              NetworkManager.Singleton != null &&
+                              NetworkManager.Singleton.IsListening;
 
-        if (networkObject != null)
+        if (networkRunning)
         {
-            RequestInteractServerRpc(networkObject.NetworkObjectId);
-            return;
+            NetworkObject networkObject = hit.collider.GetComponentInParent<NetworkObject>();
+
+            if (networkObject != null)
+            {
+                RequestInteractServerRpc(networkObject.NetworkObjectId);
+                return;
+            }
         }
 
-        // Local fallback for non-networked test objects.
         if (currentInteractable != null)
         {
             currentInteractable.Interact();
@@ -415,7 +417,6 @@ public class PlayerController : NetworkBehaviour
             return;
         }
 
-        //Multiplayer edit, sig 05/07/2026 2:30PM
         HealthPickup healthPickup = netObject.GetComponentInChildren<HealthPickup>();
 
         if (healthPickup != null)
@@ -448,16 +449,15 @@ public class PlayerController : NetworkBehaviour
         DoorInteractable door = netObject.GetComponentInChildren<DoorInteractable>();
 
         if (door != null)
-        {
             door.ShowFailPromptLocal();
-        }
     }
 
-    //Both functions, multiplayer edit
-    //Non-owner players should not enable input
     void OnEnable()
     {
-        if (IsSpawned && IsOwner)
+        if (playerInput == null)
+            return;
+
+        if (!IsSpawned || IsOwner)
             input.Enable();
     }
 
@@ -469,29 +469,30 @@ public class PlayerController : NetworkBehaviour
 
     void Jump()
     {
+        if (!HasControl()) return;
+
         if (isGrounded)
         {
             _playerVelocity.y = Mathf.Sqrt(jumpHeight * -3.0f * gravity);
 
-            if (thirdPersonNetworkAnimator != null)
+            if (thirdPersonNetworkAnimator != null && IsSpawned)
                 thirdPersonNetworkAnimator.SetTrigger(jumpTriggerParameter);
             else if (thirdPersonAnimator != null)
                 thirdPersonAnimator.SetTrigger(jumpTriggerParameter);
         }
     }
 
-    //Multiplayer edit, checks to see if local player is owner
     void AssignInputs()
     {
         input.Jump.performed += ctx =>
         {
-            if (!IsOwner) return;
+            if (!HasControl()) return;
             Jump();
         };
 
         input.Attack.started += ctx =>
         {
-            if (!IsOwner) return;
+            if (!HasControl()) return;
             Attack();
         };
     }
@@ -519,10 +520,9 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
-    //Multiplayer edit, checks if local player is owner
     public void Attack()
     {
-        if (!IsOwner) return;
+        if (!HasControl()) return;
         if (!readyToAttack || attacking) return;
 
         readyToAttack = false;
@@ -533,7 +533,7 @@ public class PlayerController : NetworkBehaviour
 
         PlayRandomSound(swordSwingClips, swordSwingVolume);
 
-        if (thirdPersonNetworkAnimator != null)
+        if (thirdPersonNetworkAnimator != null && IsSpawned)
             thirdPersonNetworkAnimator.SetTrigger(attackTriggerParameter);
         else if (thirdPersonAnimator != null)
             thirdPersonAnimator.SetTrigger(attackTriggerParameter);
@@ -556,14 +556,14 @@ public class PlayerController : NetworkBehaviour
         readyToAttack = true;
     }
 
-    //Multiplayer edit, checks if local player is owner
     void AttackRaycast()
     {
-        if (!IsOwner) return;
+        if (!HasControl()) return;
+        if (cam == null) return;
 
         if (!Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, attackDistance, attackLayer))
             return;
-        
+
         HitTarget(hit.point);
 
         EnemyHealth enemyHealth = hit.transform.GetComponent<EnemyHealth>();
@@ -572,9 +572,7 @@ public class PlayerController : NetworkBehaviour
             enemyHealth = hit.transform.GetComponentInParent<EnemyHealth>();
 
         if (enemyHealth != null)
-        {
-            enemyHealth.RequestTakeDamage(attackDamage);
-        }
+            enemyHealth.TakeDamage(attackDamage);
     }
 
     void HitTarget(Vector3 pos)
@@ -605,8 +603,6 @@ public class PlayerController : NetworkBehaviour
         audioSource.PlayOneShot(clip, volume);
     }
 
-    //Multiplayer new function,
-    //Signature: 05/07/2026 11:36AM
     void RefreshThirdPersonAnimator()
     {
         if (modelVisibility == null)
