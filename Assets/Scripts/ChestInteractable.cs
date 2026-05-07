@@ -128,7 +128,22 @@ public class ChestInteractable : NetworkBehaviour, IHoldInteractable
             openedChestModel.SetActive(isOpen.Value);
 
         if (healthPickupObject != null)
-            healthPickupObject.SetActive(isOpen.Value);
+        {
+            HealthPickup healthPickup = healthPickupObject.GetComponent<HealthPickup>();
+
+            if (healthPickup == null)
+                healthPickup = healthPickupObject.GetComponentInChildren<HealthPickup>(true);
+
+            if (healthPickup != null)
+            {
+                if (IsServer)
+                    healthPickup.SetAvailable(isOpen.Value);
+            }
+            else
+            {
+                healthPickupObject.SetActive(isOpen.Value);
+            }
+        }
     }
 
     //Multiplayer new function

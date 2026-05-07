@@ -2,8 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using Unity.Netcode;
 
-public class EnemySpawner : MonoBehaviour
+public class EnemySpawner : NetworkBehaviour
 {
     [System.Serializable]
     public class EnemyWave
@@ -57,6 +58,9 @@ public class EnemySpawner : MonoBehaviour
 
     private void Update()
     {
+        //Multiplayer edit
+        if (!IsServer) return;
+
         if (Time.time >= nextPlayerCheckTime)
         {
             nextPlayerCheckTime = Time.time + playerCheckInterval;
@@ -133,13 +137,28 @@ public class EnemySpawner : MonoBehaviour
         nextWaveIndex++;
         isSpawning = false;
     }
-
+    
+    //Mutltiplayer edit, new logic
     private void SpawnEnemy(GameObject enemyPrefab)
     {
+        if (!IsServer) return;
+
         Vector3 spawnPosition = GetSpawnPosition();
         Quaternion spawnRotation = GetSpawnRotation(spawnPosition);
 
         GameObject enemy = Instantiate(enemyPrefab, spawnPosition, spawnRotation);
+
+        NetworkObject networkObject = enemy.GetComponent<NetworkObject>();
+
+        if (networkObject == null)
+        {
+            Debug.LogError($"{enemyPrefab.name} is missing NetworkObject. Enemy cannot be network spawned.");
+            Destroy(enemy);
+            return;
+        }
+
+        networkObject.Spawn(true);
+
         aliveEnemies.Add(enemy);
 
         NavMeshAgent agent = enemy.GetComponent<NavMeshAgent>();
@@ -152,6 +171,7 @@ public class EnemySpawner : MonoBehaviour
         if (assignNearestPlayerToEnemyController)
         {
             EnemyController enemyController = enemy.GetComponent<EnemyController>();
+
             if (enemyController != null)
                 enemyController.player = nearestPlayer != null ? nearestPlayer : FindNearestPlayerByTagOnly();
         }
@@ -219,40 +239,56 @@ public class EnemySpawner : MonoBehaviour
             }
 
             EnemyHealth health = enemy.GetComponent<EnemyHealth>();
-            if (health != null && health.currentHealth <= 0)
+            if (health != null && health.IsDead)
                 aliveEnemies.RemoveAt(i);
         }
     }
 
+    //Multiplayer edit, new logic
     private void CheckForPlayersInside()
     {
         playersInside = false;
         nearestPlayer = null;
-        float nearestDistanceSquared = Mathf.Infinity;
+        float nearestDistanceSquared = activationRadius * activationRadius;
 
-        Collider[] hits = Physics.OverlapSphere(transform.position, activationRadius, playerLayers, QueryTriggerInteraction.Ignore);
-
-        foreach (Collider hit in hits)
+        if (NetworkManager.Singleton != null)
         {
-            Transform player = FindTaggedParent(hit.transform, playerTag);
-            if (player == null)
-                continue;
-
-            float distanceSquared = (player.position - transform.position).sqrMagnitude;
-            if (distanceSquared < nearestDistanceSquared)
+            foreach (NetworkClient client in NetworkManager.Singleton.ConnectedClientsList)
             {
-                nearestDistanceSquared = distanceSquared;
-                nearestPlayer = player;
+                if (client.PlayerObject == null)
+                    continue;
+
+                Transform player = client.PlayerObject.transform;
+
+                Health health = player.GetComponent<Health>();
+                if (health != null && health.IsDead)
+                    continue;
+
+                float distanceSquared = (player.position - transform.position).sqrMagnitude;
+
+                if (distanceSquared <= nearestDistanceSquared)
+                {
+                    nearestDistanceSquared = distanceSquared;
+                    nearestPlayer = player;
+                    playersInside = true;
+                }
             }
         }
 
-        if (nearestPlayer == null && useTagFallbackIfOverlapFindsNone)
-            nearestPlayer = FindNearestPlayerByTagOnly();
-
-        if (nearestPlayer != null)
+        if (!playersInside && useTagFallbackIfOverlapFindsNone)
         {
-            float distance = Vector3.Distance(transform.position, nearestPlayer.position);
-            playersInside = distance <= activationRadius;
+            Transform fallbackPlayer = FindNearestPlayerByTagOnly();
+
+            if (fallbackPlayer != null)
+            {
+                float distance = Vector3.Distance(transform.position, fallbackPlayer.position);
+
+                if (distance <= activationRadius)
+                {
+                    nearestPlayer = fallbackPlayer;
+                    playersInside = true;
+                }
+            }
         }
     }
 
