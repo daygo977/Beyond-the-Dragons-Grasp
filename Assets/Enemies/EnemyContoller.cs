@@ -1,14 +1,20 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
+using Unity.Netcode;
+using Unity.Netcode.Components;
 
 [RequireComponent(typeof(NavMeshAgent))]
-public class EnemyController : MonoBehaviour
+public class EnemyController : NetworkBehaviour
 {
     [Header("Target")]
     public Transform player;
     public float detectionRange = 10f;
     public float attackRange = 2f;
+
+    //Multiplayer edit
+    [Header("Multiplayer Targeting")]
+    public float targetRefreshRate = 0.25f;
 
     [Header("Movement")]
     public float runSpeed = 3f;
@@ -57,6 +63,10 @@ public class EnemyController : MonoBehaviour
     public GameObject slash02Hitbox;
     public GameObject stabHitbox;
 
+    //Multiplayer edit
+    [Header("Damage")]
+    public int attackDamage = 10;
+
     [Header("Death Fade")]
     public float destroyAfterDeathDelay = 5f;
     public float fadeDuration = 2f;
@@ -93,11 +103,16 @@ public class EnemyController : MonoBehaviour
     private float nextStuckCheckTime;
     private float stuckTimer;
 
+    //Multiplayer edit
+    private NetworkAnimator networkAnimator;
+    private float nextTargetRefreshTime;
+
     private void Awake()
     {
         animator = GetComponentInChildren<Animator>();
         agent = GetComponent<NavMeshAgent>();
         characterController = GetComponent<CharacterController>();
+        networkAnimator = GetComponent<NetworkAnimator>();
 
         AcquirePlayer();
 
@@ -107,6 +122,22 @@ public class EnemyController : MonoBehaviour
         ConfigureAgent();
         DisableAllHitboxes();
         ResetStuckCheck();
+        ConfigureAttackHitboxes();
+    }
+
+    //Multiplayer new function
+    public override void OnNetworkSpawn()
+    {
+        if (!IsServer)
+        {
+            if (agent != null)
+                agent.enabled = false;
+
+            DisableAllHitboxes();
+            return;
+        }
+
+        AcquirePlayer();
     }
 
     private void OnValidate()
@@ -128,10 +159,11 @@ public class EnemyController : MonoBehaviour
 
     private void Update()
     {
+        if (!IsServer) return;
+
         if (isDead) return;
 
-        if (player == null)
-            AcquirePlayer();
+        RefreshTarget();
 
         ConfigureAgent();
 
@@ -216,21 +248,117 @@ public class EnemyController : MonoBehaviour
             player = namedPlayer.transform;
     }
 
-    private float GetDistanceToPlayer()
+    //Multiplayer new function
+    private void RefreshTarget()
     {
-        if (player == null)
+        if (Time.time < nextTargetRefreshTime)
+            return;
+
+        nextTargetRefreshTime = Time.time + targetRefreshRate;
+
+        float searchRange = hasDetectedPlayer ? loseInterestRange : detectionRange;
+        Transform nearestPlayer = FindNearestPlayerWithinRange(searchRange);
+
+        if (nearestPlayer != null)
+        {
+            if (player != nearestPlayer && debugDetection)
+                Debug.Log($"{name} retargeted to {nearestPlayer.name}");
+
+            player = nearestPlayer;
+            return;
+        }
+
+        if (hasDetectedPlayer)
+        {
+            if (debugDetection)
+                Debug.Log($"{name} lost all players.");
+
+            player = null;
+            hasDetectedPlayer = false;
+            hasFinishedScream = false;
+            hasPatrolPoint = false;
+
+            if (!isActing && !isReacting)
+                StopAgent(true);
+        }
+        else
+        {
+            player = null;
+        }
+    }
+
+    //Multiplayer new function
+    private Transform FindNearestPlayerWithinRange(float maxRange)
+    {
+        Transform nearest = null;
+        float nearestDistanceSquared = maxRange * maxRange;
+
+        if (NetworkManager.Singleton != null)
+        {
+            foreach (NetworkClient client in NetworkManager.Singleton.ConnectedClientsList)
+            {
+                if (client.PlayerObject == null)
+                    continue;
+
+                Transform candidate = client.PlayerObject.transform;
+
+                Health health = candidate.GetComponent<Health>();
+                if (health != null && health.IsDead)
+                    continue;
+
+                float distanceSquared = GetDistanceSquaredTo(candidate);
+
+                if (distanceSquared <= nearestDistanceSquared)
+                {
+                    nearestDistanceSquared = distanceSquared;
+                    nearest = candidate;
+                }
+            }
+        }
+
+        if (nearest != null)
+            return nearest;
+
+        GameObject[] taggedPlayers = GameObject.FindGameObjectsWithTag("Player");
+
+        foreach (GameObject playerObject in taggedPlayers)
+        {
+            float distanceSquared = GetDistanceSquaredTo(playerObject.transform);
+
+            if (distanceSquared <= nearestDistanceSquared)
+            {
+                nearestDistanceSquared = distanceSquared;
+                nearest = playerObject.transform;
+            }
+        }
+
+        return nearest;
+    }
+
+    //Multiplayer new function
+    private float GetDistanceSquaredTo(Transform target)
+    {
+        if (target == null)
             return Mathf.Infinity;
 
         Vector3 enemyPosition = transform.position;
-        Vector3 playerPosition = player.position;
+        Vector3 targetPosition = target.position;
 
         if (ignoreHeightForDetection)
         {
             enemyPosition.y = 0f;
-            playerPosition.y = 0f;
+            targetPosition.y = 0f;
         }
 
-        return Vector3.Distance(enemyPosition, playerPosition);
+        return (targetPosition - enemyPosition).sqrMagnitude;
+    }
+
+    private float GetDistanceToPlayer()
+    {
+        if (player == null)
+        return Mathf.Infinity;
+
+        return Mathf.Sqrt(GetDistanceSquaredTo(player));
     }
 
     private void ConfigureAgent()
@@ -586,7 +714,11 @@ public class EnemyController : MonoBehaviour
             yield return null;
         }
 
-        Destroy(gameObject);
+        //Multiplayer edit
+        if (IsServer && NetworkObject != null && NetworkObject.IsSpawned)
+            NetworkObject.Despawn(true);
+        else
+            Destroy(gameObject);
     }
 
     private void MonitorStuck(bool patrolMode)
@@ -673,12 +805,21 @@ public class EnemyController : MonoBehaviour
             animator.SetBool(parameterName, value);
     }
 
+    //Multiplayer edit, new logic
     private void SetAnimatorTrigger(string parameterName)
     {
-        if (HasAnimatorParameter(parameterName, AnimatorControllerParameterType.Trigger))
+        if (!HasAnimatorParameter(parameterName, AnimatorControllerParameterType.Trigger))
+        {
+            if (debugNavMesh)
+                Debug.LogWarning($"{name} animator does not have trigger parameter '{parameterName}'.");
+
+            return;
+        }
+
+        if (networkAnimator != null && IsSpawned)
+            networkAnimator.SetTrigger(parameterName);
+        else if (animator != null)
             animator.SetTrigger(parameterName);
-        else if (debugNavMesh)
-            Debug.LogWarning($"{name} animator does not have trigger parameter '{parameterName}'.");
     }
 
     private void DisableAllHitboxes()
@@ -691,6 +832,26 @@ public class EnemyController : MonoBehaviour
 
         if (stabHitbox != null)
             stabHitbox.SetActive(false);
+    }
+
+    //Multiplayer new function
+    private void ConfigureAttackHitboxes()
+    {
+        ConfigureAttackHitbox(slash01Hitbox);
+        ConfigureAttackHitbox(slash02Hitbox);
+        ConfigureAttackHitbox(stabHitbox);
+    }
+
+    //Multiplayer new function
+    private void ConfigureAttackHitbox(GameObject hitboxObject)
+    {
+        if (hitboxObject == null)
+            return;
+
+        EnemyAttackHitbox hitbox = hitboxObject.GetComponent<EnemyAttackHitbox>();
+
+        if (hitbox != null)
+            hitbox.sourceEnemy = this;
     }
 
     public void EnableSlash01Hitbox()

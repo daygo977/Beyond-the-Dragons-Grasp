@@ -304,7 +304,7 @@ public class PlayerController : NetworkBehaviour
         if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactLayer))
         {
             //Multiplayer edit, can change if mistake, remove InParent text
-            MonoBehaviour[] behaviours = hit.collider.GetComponentsInParent<MonoBehaviour>();
+            MonoBehaviour[] behaviours = hit.collider.GetComponents<MonoBehaviour>();
 
             foreach (var behaviour in behaviours)
             {
@@ -412,6 +412,15 @@ public class PlayerController : NetworkBehaviour
             }
 
             door.Interact();
+            return;
+        }
+
+        //Multiplayer edit, sig 05/07/2026 2:30PM
+        HealthPickup healthPickup = netObject.GetComponentInChildren<HealthPickup>();
+
+        if (healthPickup != null)
+        {
+            healthPickup.Interact(OwnerClientId);
             return;
         }
 
@@ -564,7 +573,7 @@ public class PlayerController : NetworkBehaviour
 
         if (enemyHealth != null)
         {
-            enemyHealth.TakeDamage(attackDamage);
+            enemyHealth.RequestTakeDamage(attackDamage);
         }
     }
 
