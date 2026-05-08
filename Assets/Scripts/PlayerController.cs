@@ -1,18 +1,23 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
+using Unity.Netcode;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : NetworkBehaviour
 {
     PlayerInput playerInput;
     PlayerInput.MainActions input;
 
     CharacterController controller;
-    Animator animator;
     AudioSource audioSource;
+    AudioListener audioListener;
     Health playerHealth;
+
+    [Header("First Person Animation")]
+    public Animator firstPersonAnimator;
+
+    PlayerModelVisibility modelVisibility;
+    Unity.Netcode.Components.NetworkAnimator thirdPersonNetworkAnimator;
 
     [Header("Controller")]
     public float moveSpeed = 3.5f;
@@ -41,8 +46,10 @@ public class PlayerController : MonoBehaviour
     public float interactDistance = 3f;
     public LayerMask interactLayer;
     public TextMeshProUGUI interactText;
+    public string sceneInteractTextObjectName = "Interact Text";
 
     IInteractable currentInteractable;
+    IHoldInteractable currentHoldInteractable;
 
     [Header("Attacking")]
     public float attackDistance = 3f;
@@ -59,6 +66,16 @@ public class PlayerController : MonoBehaviour
     [Range(0f, 1f)] public float swordSwingVolume = 0.8f;
     [Range(0f, 1f)] public float hitSoundVolume = 1f;
 
+    [Header("Third Person Model Animation")]
+    public Animator thirdPersonAnimator;
+    public string moveXParameter = "MoveX";
+    public string moveYParameter = "MoveY";
+    public string isMovingParameter = "IsMoving";
+    public string isRunningParameter = "IsRunning";
+    public string isGroundedParameter = "IsGrounded";
+    public string jumpTriggerParameter = "Jump";
+    public string attackTriggerParameter = "Attack";
+
     bool attacking = false;
     bool readyToAttack = true;
     int attackCount;
@@ -73,40 +90,93 @@ public class PlayerController : MonoBehaviour
     void Awake()
     {
         controller = GetComponent<CharacterController>();
-        animator = GetComponentInChildren<Animator>();
         audioSource = GetComponent<AudioSource>();
         playerHealth = GetComponent<Health>();
+
+        if (firstPersonAnimator == null)
+            firstPersonAnimator = GetComponentInChildren<Animator>();
 
         playerInput = new PlayerInput();
         input = playerInput.Main;
 
         AssignInputs();
 
+        if (cam != null)
+            audioListener = cam.GetComponent<AudioListener>();
+
+        modelVisibility = GetComponent<PlayerModelVisibility>();
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+    }
 
-        if (interactText != null)
-            interactText.text = "";
+    bool HasControl()
+    {
+        return !IsSpawned || IsOwner;
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        if (HasControl())
+        {
+            input.Enable();
+
+            if (cam != null)
+                cam.enabled = true;
+
+            if (audioListener != null)
+                audioListener.enabled = true;
+
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+
+            FindSceneInteractText();
+
+            if (interactText != null)
+                interactText.text = "";
+        }
+        else
+        {
+            input.Disable();
+
+            if (cam != null)
+                cam.enabled = false;
+
+            if (audioListener != null)
+                audioListener.enabled = false;
+        }
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        input.Disable();
     }
 
     void Update()
     {
+        if (!HasControl()) return;
+
+        FindSceneInteractText();
+        RefreshThirdPersonAnimator();
+
+        if (controller == null)
+            return;
+
         wasGrounded = isGrounded;
         isGrounded = controller.isGrounded;
 
         if (!wasGrounded && isGrounded)
-        {
             CheckFallDamage();
-        }
 
         if (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsPaused)
         {
-            ApplyVerticalMovementOnly();
+            SetPausedAnimationState();
 
             if (interactText != null)
                 interactText.text = "";
 
             currentInteractable = null;
+            currentHoldInteractable = null;
             return;
         }
 
@@ -118,16 +188,32 @@ public class PlayerController : MonoBehaviour
                       moveInput.y > 0f;
 
         MoveInput(moveInput);
+        UpdateThirdPersonAnimator(moveInput);
         LookInput(lookInput);
 
         CheckForInteractable();
-
-        if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
-        {
-            TryInteract();
-        }
+        HandleInteractionInput();
 
         SetAnimations();
+    }
+
+    void FindSceneInteractText()
+    {
+        if (interactText != null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(sceneInteractTextObjectName))
+            return;
+
+        GameObject textObject = GameObject.Find(sceneInteractTextObjectName);
+
+        if (textObject == null)
+            return;
+
+        interactText = textObject.GetComponent<TextMeshProUGUI>();
+
+        if (interactText != null)
+            interactText.text = "";
     }
 
     void MoveInput(Vector2 inputValue)
@@ -143,17 +229,10 @@ public class PlayerController : MonoBehaviour
         ApplyGravity();
     }
 
-    void ApplyVerticalMovementOnly()
-    {
-        ApplyGravity();
-    }
-
     void ApplyGravity()
     {
         if (isGrounded && _playerVelocity.y < 0f)
-        {
             _playerVelocity.y = -2f;
-        }
 
         _playerVelocity.y += gravity * Time.deltaTime;
         controller.Move(_playerVelocity * Time.deltaTime);
@@ -172,14 +251,61 @@ public class PlayerController : MonoBehaviour
         int damage = Mathf.RoundToInt((landingSpeed - fallDamageThreshold) * fallDamageMultiplier);
         damage = Mathf.Clamp(damage, 0, maxFallDamage);
 
-        if (damage > 0)
-        {
+        if (damage <= 0)
+            return;
+
+        if (!IsSpawned)
             playerHealth.TakeDamage(damage);
+        else
+            RequestSelfDamageServerRpc(damage);
+    }
+
+    [ServerRpc]
+    void RequestSelfDamageServerRpc(int damageAmount)
+    {
+        Health health = GetComponent<Health>();
+
+        if (health == null)
+            return;
+
+        health.TakeDamage(damageAmount);
+    }
+
+    void UpdateThirdPersonAnimator(Vector2 moveInput)
+    {
+        if (thirdPersonAnimator == null) return;
+
+        if (moveInput.magnitude > 1f)
+            moveInput.Normalize();
+
+        bool moving = moveInput.sqrMagnitude > 0.01f;
+
+        thirdPersonAnimator.SetFloat(moveXParameter, moveInput.x);
+        thirdPersonAnimator.SetFloat(moveYParameter, moveInput.y);
+        thirdPersonAnimator.SetBool(isMovingParameter, moving);
+        thirdPersonAnimator.SetBool(isRunningParameter, isSprinting);
+        thirdPersonAnimator.SetBool(isGroundedParameter, isGrounded);
+    }
+
+    void SetPausedAnimationState()
+    {
+        if (thirdPersonAnimator != null)
+        {
+            thirdPersonAnimator.SetFloat(moveXParameter, 0f);
+            thirdPersonAnimator.SetFloat(moveYParameter, 0f);
+            thirdPersonAnimator.SetBool(isMovingParameter, false);
+            thirdPersonAnimator.SetBool(isRunningParameter, false);
+            thirdPersonAnimator.SetBool(isGroundedParameter, true);
         }
+
+        if (!attacking)
+            ChangeAnimationState(IDLE);
     }
 
     void LookInput(Vector2 inputValue)
     {
+        if (cam == null) return;
+
         float mouseX = inputValue.x;
         float mouseY = inputValue.y;
 
@@ -193,16 +319,23 @@ public class PlayerController : MonoBehaviour
     void CheckForInteractable()
     {
         currentInteractable = null;
+        currentHoldInteractable = null;
+
+        if (cam == null)
+            return;
 
         if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactLayer))
         {
             MonoBehaviour[] behaviours = hit.collider.GetComponents<MonoBehaviour>();
 
-            foreach (var behaviour in behaviours)
+            foreach (MonoBehaviour behaviour in behaviours)
             {
                 if (behaviour is IInteractable interactable)
                 {
                     currentInteractable = interactable;
+
+                    if (behaviour is IHoldInteractable holdInteractable)
+                        currentHoldInteractable = holdInteractable;
 
                     if (interactText != null)
                         interactText.text = currentInteractable.GetPromptText();
@@ -216,8 +349,58 @@ public class PlayerController : MonoBehaviour
             interactText.text = "";
     }
 
+    void HandleInteractionInput()
+    {
+        if (Keyboard.current == null)
+            return;
+
+        if (currentHoldInteractable != null)
+        {
+            if (Keyboard.current.eKey.isPressed)
+            {
+                currentHoldInteractable.HoldInteract(Time.deltaTime);
+
+                if (interactText != null)
+                    interactText.text = currentHoldInteractable.GetPromptText();
+            }
+            else
+            {
+                currentHoldInteractable.ResetHold();
+
+                if (interactText != null && currentInteractable != null)
+                    interactText.text = currentInteractable.GetPromptText();
+            }
+
+            return;
+        }
+
+        if (Keyboard.current.eKey.wasPressedThisFrame)
+            TryInteract();
+    }
+
     void TryInteract()
     {
+        if (!HasControl()) return;
+        if (cam == null) return;
+
+        if (!Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactLayer))
+            return;
+
+        bool networkRunning = IsSpawned &&
+                              NetworkManager.Singleton != null &&
+                              NetworkManager.Singleton.IsListening;
+
+        if (networkRunning)
+        {
+            NetworkObject networkObject = hit.collider.GetComponentInParent<NetworkObject>();
+
+            if (networkObject != null)
+            {
+                RequestInteractServerRpc(networkObject.NetworkObjectId);
+                return;
+            }
+        }
+
         if (currentInteractable != null)
         {
             currentInteractable.Interact();
@@ -227,36 +410,132 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    [ServerRpc]
+    void RequestInteractServerRpc(ulong objectId)
+    {
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(objectId, out NetworkObject netObject))
+            return;
+
+        KeyPickup keyPickup = netObject.GetComponentInChildren<KeyPickup>();
+
+        if (keyPickup != null)
+        {
+            keyPickup.Interact();
+            return;
+        }
+
+        DoorInteractable door = netObject.GetComponentInChildren<DoorInteractable>();
+
+        if (door != null)
+        {
+            bool hasKey = GameFlags.Instance != null && GameFlags.Instance.HasKey(door.requiredKeyId);
+
+            if (door.requiresKey && !hasKey)
+            {
+                ShowDoorFailPromptClientRpc(OwnerClientId, objectId);
+                return;
+            }
+
+            door.Interact();
+            return;
+        }
+
+        EscapeDoorInteractable escapeDoor = netObject.GetComponentInChildren<EscapeDoorInteractable>();
+
+        if (escapeDoor != null)
+        {
+            escapeDoor.Interact();
+            return;
+        }
+
+        HealthPickup healthPickup = netObject.GetComponentInChildren<HealthPickup>();
+
+        if (healthPickup != null)
+        {
+            healthPickup.Interact(OwnerClientId);
+            return;
+        }
+
+        MonoBehaviour[] behaviours = netObject.GetComponentsInChildren<MonoBehaviour>();
+
+        foreach (MonoBehaviour behaviour in behaviours)
+        {
+            if (behaviour is IInteractable interactable)
+            {
+                interactable.Interact();
+                return;
+            }
+        }
+    }
+
+    [ClientRpc]
+    void ShowDoorFailPromptClientRpc(ulong targetClientId, ulong objectId)
+    {
+        if (NetworkManager.Singleton.LocalClientId != targetClientId)
+            return;
+
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(objectId, out NetworkObject netObject))
+            return;
+
+        DoorInteractable door = netObject.GetComponentInChildren<DoorInteractable>();
+
+        if (door != null)
+            door.ShowFailPromptLocal();
+    }
+
     void OnEnable()
     {
-        input.Enable();
+        if (playerInput == null)
+            return;
+
+        if (!IsSpawned || IsOwner)
+            input.Enable();
     }
 
     void OnDisable()
     {
-        input.Disable();
+        if (playerInput != null)
+            input.Disable();
     }
 
     void Jump()
     {
+        if (!HasControl()) return;
+
         if (isGrounded)
         {
             _playerVelocity.y = Mathf.Sqrt(jumpHeight * -3.0f * gravity);
+
+            if (thirdPersonNetworkAnimator != null && IsSpawned)
+                thirdPersonNetworkAnimator.SetTrigger(jumpTriggerParameter);
+            else if (thirdPersonAnimator != null)
+                thirdPersonAnimator.SetTrigger(jumpTriggerParameter);
         }
     }
 
     void AssignInputs()
     {
-        input.Jump.performed += ctx => Jump();
-        input.Attack.started += ctx => Attack();
+        input.Jump.performed += ctx =>
+        {
+            if (!HasControl()) return;
+            Jump();
+        };
+
+        input.Attack.started += ctx =>
+        {
+            if (!HasControl()) return;
+            Attack();
+        };
     }
 
     public void ChangeAnimationState(string newState)
     {
+        if (firstPersonAnimator == null) return;
+        if (!firstPersonAnimator.gameObject.activeInHierarchy) return;
         if (currentAnimationState == newState) return;
 
         currentAnimationState = newState;
-        animator.CrossFadeInFixedTime(currentAnimationState, 0.2f);
+        firstPersonAnimator.CrossFadeInFixedTime(currentAnimationState, 0.2f);
     }
 
     void SetAnimations()
@@ -274,6 +553,7 @@ public class PlayerController : MonoBehaviour
 
     public void Attack()
     {
+        if (!HasControl()) return;
         if (!readyToAttack || attacking) return;
 
         readyToAttack = false;
@@ -283,6 +563,11 @@ public class PlayerController : MonoBehaviour
         Invoke(nameof(AttackRaycast), attackDelay);
 
         PlayRandomSound(swordSwingClips, swordSwingVolume);
+
+        if (thirdPersonNetworkAnimator != null && IsSpawned)
+            thirdPersonNetworkAnimator.SetTrigger(attackTriggerParameter);
+        else if (thirdPersonAnimator != null)
+            thirdPersonAnimator.SetTrigger(attackTriggerParameter);
 
         if (attackCount == 0)
         {
@@ -304,28 +589,21 @@ public class PlayerController : MonoBehaviour
 
     void AttackRaycast()
     {
-        if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, attackDistance, attackLayer))
-        {
-            HitTarget(hit.point);
+        if (!HasControl()) return;
+        if (cam == null) return;
 
-            Health normalHealth = hit.transform.GetComponent<Health>();
+        if (!Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, attackDistance, attackLayer))
+            return;
 
-            if (normalHealth != null)
-            {
-                normalHealth.TakeDamage(attackDamage);
-                return;
-            }
+        HitTarget(hit.point);
 
-            EnemyHealth enemyHealth = hit.transform.GetComponent<EnemyHealth>();
+        EnemyHealth enemyHealth = hit.transform.GetComponent<EnemyHealth>();
 
-            if (enemyHealth == null)
-                enemyHealth = hit.transform.GetComponentInParent<EnemyHealth>();
+        if (enemyHealth == null)
+            enemyHealth = hit.transform.GetComponentInParent<EnemyHealth>();
 
-            if (enemyHealth != null)
-            {
-                enemyHealth.TakeDamage(attackDamage);
-            }
-        }
+        if (enemyHealth != null)
+            enemyHealth.RequestTakeDamage(attackDamage);
     }
 
     void HitTarget(Vector3 pos)
@@ -354,5 +632,17 @@ public class PlayerController : MonoBehaviour
 
         audioSource.pitch = Random.Range(0.9f, 1.1f);
         audioSource.PlayOneShot(clip, volume);
+    }
+
+    void RefreshThirdPersonAnimator()
+    {
+        if (modelVisibility == null)
+            return;
+
+        if (modelVisibility.ActiveThirdPersonAnimator != null)
+            thirdPersonAnimator = modelVisibility.ActiveThirdPersonAnimator;
+
+        if (modelVisibility.ActiveThirdPersonNetworkAnimator != null)
+            thirdPersonNetworkAnimator = modelVisibility.ActiveThirdPersonNetworkAnimator;
     }
 }

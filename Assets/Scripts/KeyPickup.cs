@@ -1,8 +1,11 @@
-using System.Collections;
 using UnityEngine;
+using Unity.Netcode;
 
-public class KeyPickup : MonoBehaviour, IInteractable
+public class KeyPickup : NetworkBehaviour, IInteractable
 {
+    [Header("Key")]
+    public string keyId = "DefaultKey";
+
     [Header("Prompt Text")]
     [TextArea]
     public string promptText = "Press E to pick up key";
@@ -12,14 +15,49 @@ public class KeyPickup : MonoBehaviour, IInteractable
     public AudioClip pickupSound;
     [Range(0f, 1f)] public float pickupVolume = 1f;
 
-    [Header("Pickup")]
-    public float disableDelay = 1f;
+    private NetworkVariable<bool> pickedUp = new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
-    private bool pickedUp;
+    private NetworkVariable<bool> isAvailable = new NetworkVariable<bool>(
+        true,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
+    private void Awake()
+    {
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        pickedUp.OnValueChanged += OnStateChanged;
+        isAvailable.OnValueChanged += OnStateChanged;
+
+        ApplyVisualState();
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        pickedUp.OnValueChanged -= OnStateChanged;
+        isAvailable.OnValueChanged -= OnStateChanged;
+    }
+
+    private void OnStateChanged(bool oldValue, bool newValue)
+    {
+        ApplyVisualState();
+
+        if (pickedUp.Value)
+            PlayPickupSoundLocal();
+    }
 
     public string GetPromptText()
     {
-        if (pickedUp)
+        if (!isAvailable.Value || pickedUp.Value)
             return "";
 
         return promptText;
@@ -27,38 +65,58 @@ public class KeyPickup : MonoBehaviour, IInteractable
 
     public void Interact()
     {
-        if (pickedUp) return;
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && !IsServer)
+            return;
 
-        pickedUp = true;
+        if (!isAvailable.Value || pickedUp.Value)
+            return;
+
+        pickedUp.Value = true;
+        isAvailable.Value = false;
 
         if (GameFlags.Instance != null)
-        {
-            GameFlags.Instance.hasDoorKey = true;
-        }
-
-        StartCoroutine(PickupRoutine());
+            GameFlags.Instance.AddKey(keyId);
     }
 
-    IEnumerator PickupRoutine()
+    public void SetAvailable(bool available)
     {
-        Collider[] colliders = GetComponentsInChildren<Collider>();
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && !IsServer)
+            return;
 
-        foreach (Collider col in colliders)
-            col.enabled = false;
+        if (pickedUp.Value)
+        {
+            isAvailable.Value = false;
+            return;
+        }
 
-        Renderer[] renderers = GetComponentsInChildren<Renderer>();
+        isAvailable.Value = available;
+        ApplyVisualState();
+    }
 
+    private void ApplyVisualState()
+    {
+        bool visible = isAvailable.Value && !pickedUp.Value;
+
+        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
         foreach (Renderer rend in renderers)
-            rend.enabled = false;
+            rend.enabled = visible;
+
+        Collider[] colliders = GetComponentsInChildren<Collider>(true);
+        foreach (Collider col in colliders)
+            col.enabled = visible;
+    }
+
+    private void PlayPickupSoundLocal()
+    {
+        if (pickupSound == null)
+            return;
 
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
 
-        if (pickupSound != null && audioSource != null)
+        if (audioSource != null)
             audioSource.PlayOneShot(pickupSound, pickupVolume);
-
-        yield return new WaitForSeconds(disableDelay);
-
-        gameObject.SetActive(false);
+        else
+            AudioSource.PlayClipAtPoint(pickupSound, transform.position, pickupVolume);
     }
 }

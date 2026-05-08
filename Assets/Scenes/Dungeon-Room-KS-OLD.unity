@@ -10059,6 +10059,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 558958204}
     m_Modifications:
+    - target: {fileID: 861812766634670514, guid: 47a58d6a8a905f94ab7bf97e8c684b99, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 9dfc825aed78fcd4ba02077103263b40, type: 2}
     - target: {fileID: 3600627593565391438, guid: 47a58d6a8a905f94ab7bf97e8c684b99, type: 3}
       propertyPath: m_Name
       value: Campfire (1)
@@ -14465,6 +14469,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 861812766634670514, guid: 47a58d6a8a905f94ab7bf97e8c684b99, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 9dfc825aed78fcd4ba02077103263b40, type: 2}
     - target: {fileID: 3600627593565391438, guid: 47a58d6a8a905f94ab7bf97e8c684b99, type: 3}
       propertyPath: m_Name
       value: Campfire

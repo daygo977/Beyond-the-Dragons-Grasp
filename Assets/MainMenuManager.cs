@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class MainMenuManager : MonoBehaviour
 {
@@ -13,8 +14,10 @@ public class MainMenuManager : MonoBehaviour
 
     [Header("Main Panels")]
     public GameObject mainMenuPanel;
-    public GameObject playPlaceholderPanel;
     public GameObject settingsPanel;
+
+    [Header("Scene Navigation")]
+    public string lobbyBrowseSceneName = "LobbyBrowse";
 
     [Header("Exit Confirmation")]
     public GameObject exitPromptPanel;
@@ -41,7 +44,6 @@ public class MainMenuManager : MonoBehaviour
     {
         CacheOriginalAlphas(logoPanel);
         CacheOriginalAlphas(mainMenuPanel);
-        CacheOriginalAlphas(playPlaceholderPanel);
         CacheOriginalAlphas(settingsPanel);
         CacheOriginalAlphas(exitPromptPanel);
         CacheOriginalAlphas(exitBlocker);
@@ -98,9 +100,6 @@ public class MainMenuManager : MonoBehaviour
         if (mainMenuPanel != null)
             mainMenuPanel.SetActive(false);
 
-        if (playPlaceholderPanel != null)
-            playPlaceholderPanel.SetActive(false);
-
         if (settingsPanel != null)
             settingsPanel.SetActive(false);
 
@@ -132,9 +131,6 @@ public class MainMenuManager : MonoBehaviour
             SetPanelHoverEnabled(mainMenuPanel, false);
         }
 
-        if (playPlaceholderPanel != null)
-            playPlaceholderPanel.SetActive(false);
-
         if (settingsPanel != null)
             settingsPanel.SetActive(false);
 
@@ -162,9 +158,6 @@ public class MainMenuManager : MonoBehaviour
             SetPanelInteractable(mainMenuPanel, true);
             SetPanelHoverEnabled(mainMenuPanel, true);
         }
-
-        if (playPlaceholderPanel != null)
-            playPlaceholderPanel.SetActive(false);
 
         if (settingsPanel != null)
             settingsPanel.SetActive(false);
@@ -228,32 +221,20 @@ public class MainMenuManager : MonoBehaviour
     {
         if (!CanUseMainButtons()) return;
 
+        mainMenuButtonsEnabled = false;
+        isTransitioning = true;
+
         if (mainMenuPanel != null)
         {
             SetPanelHoverEnabled(mainMenuPanel, false);
-            mainMenuPanel.SetActive(false);
+            SetPanelInteractable(mainMenuPanel, false);
         }
 
-        if (settingsPanel != null)
-            settingsPanel.SetActive(false);
-
-        if (playPlaceholderPanel != null)
-        {
-            playPlaceholderPanel.SetActive(true);
-            SetPanelAlphaMultiplier(playPlaceholderPanel, 1f);
-            SetPanelInteractable(playPlaceholderPanel, true);
-            SetPanelHoverEnabled(playPlaceholderPanel, true);
-        }
+        SceneManager.LoadScene(lobbyBrowseSceneName);
     }
 
     public void ReturnToMainMenu()
     {
-        if (playPlaceholderPanel != null)
-        {
-            SetPanelHoverEnabled(playPlaceholderPanel, false);
-            playPlaceholderPanel.SetActive(false);
-        }
-
         if (settingsPanel != null)
         {
             SetPanelHoverEnabled(settingsPanel, false);
@@ -282,12 +263,6 @@ public class MainMenuManager : MonoBehaviour
         {
             SetPanelHoverEnabled(mainMenuPanel, false);
             mainMenuPanel.SetActive(false);
-        }
-
-        if (playPlaceholderPanel != null)
-        {
-            SetPanelHoverEnabled(playPlaceholderPanel, false);
-            playPlaceholderPanel.SetActive(false);
         }
 
         if (settingsPanel != null)

@@ -137,7 +137,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1522551986384913728, guid: 0e563d4bc38bd774d8ad521cab6d39c8, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -9.386
+      value: -4
       objectReference: {fileID: 0}
     - target: {fileID: 1522551986384913728, guid: 0e563d4bc38bd774d8ad521cab6d39c8, type: 3}
       propertyPath: m_LocalPosition.y
@@ -175,24 +175,13 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 1522551986384913729, guid: 0e563d4bc38bd774d8ad521cab6d39c8, type: 3}
-      propertyPath: m_Controller
-      value: 
-      objectReference: {fileID: 9100000, guid: dc4c3fbb5dd1fea40b4baad92d130e47, type: 2}
-    - target: {fileID: 1522551986384913729, guid: 0e563d4bc38bd774d8ad521cab6d39c8, type: 3}
-      propertyPath: m_ApplyRootMotion
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 1522551986384913790, guid: 0e563d4bc38bd774d8ad521cab6d39c8, type: 3}
       propertyPath: m_Name
       value: male_swordsman_02_grey (2)
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects:
-    - targetCorrespondingSourceObject: {fileID: 1522551984826905621, guid: 0e563d4bc38bd774d8ad521cab6d39c8, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 2041988294}
+    m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0e563d4bc38bd774d8ad521cab6d39c8, type: 3}
 --- !u!1001 &44271545
@@ -585,79 +574,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0bef989b5d1d1a642b112e99342ad271, type: 3}
---- !u!1001 &358854994
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 396091685}
-    m_Modifications:
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalScale.x
-      value: 0.010000001
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalScale.y
-      value: 0.010000004
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalScale.z
-      value: 0.0100000035
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0.000234
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.001251
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0.000028
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 0.5451102
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0.59403986
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0.40054876
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0.435353
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 17.39
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 91.6
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 95.1
-      objectReference: {fileID: 0}
-    - target: {fileID: -7511558181221131132, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2100000, guid: 22904a9189b6b00479dd73e7c0ccd995, type: 2}
-    - target: {fileID: 919132149155446097, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-      propertyPath: m_Name
-      value: sword
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
 --- !u!1001 &390006551
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -723,11 +639,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c26e8c19d8cdac1479dfd6f1b18b3864, type: 3}
---- !u!4 &396091685 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 1522551984826905621, guid: 0e563d4bc38bd774d8ad521cab6d39c8, type: 3}
-  m_PrefabInstance: {fileID: 19713061}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &497612259
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1549,7 +1460,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1472493529}
   - component: {fileID: 1472493528}
-  - component: {fileID: 1472493530}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -1637,29 +1547,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: -178.9, z: 0}
---- !u!114 &1472493530
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1472493527}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Version: 3
-  m_UsePipelineSettings: 1
-  m_AdditionalLightsShadowResolutionTier: 2
-  m_LightLayerMask: 1
-  m_RenderingLayers: 1
-  m_CustomShadowLayers: 0
-  m_ShadowLayerMask: 1
-  m_ShadowRenderingLayers: 1
-  m_LightCookieSize: {x: 1, y: 1}
-  m_LightCookieOffset: {x: 0, y: 0}
-  m_SoftShadowQuality: 0
 --- !u!1001 &1497559305
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2245,11 +2132,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e5c246663838d0542aa1a67e8c7216e6, type: 3}
---- !u!4 &2041988294 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3e45b9670116d5442ace49d4a017ad40, type: 3}
-  m_PrefabInstance: {fileID: 358854994}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &2047838633
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2272,7 +2154,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4884770922061884280, guid: e5c246663838d0542aa1a67e8c7216e6, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -6.708
+      value: -4
       objectReference: {fileID: 0}
     - target: {fileID: 4884770922061884280, guid: e5c246663838d0542aa1a67e8c7216e6, type: 3}
       propertyPath: m_LocalPosition.y
@@ -2280,7 +2162,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4884770922061884280, guid: e5c246663838d0542aa1a67e8c7216e6, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 5.08
+      value: -4
       objectReference: {fileID: 0}
     - target: {fileID: 4884770922061884280, guid: e5c246663838d0542aa1a67e8c7216e6, type: 3}
       propertyPath: m_LocalRotation.w
@@ -2449,10 +2331,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1522551984340098116, guid: 0e563d4bc38bd774d8ad521cab6d39c8, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2100000, guid: 22904a9189b6b00479dd73e7c0ccd995, type: 2}
     - target: {fileID: 1522551986384913728, guid: 0e563d4bc38bd774d8ad521cab6d39c8, type: 3}
       propertyPath: m_RootOrder
       value: 11
@@ -2581,7 +2459,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3747777146717950885, guid: 4b96985b6de6e0241acaeece98689fa9, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -10.49
+      value: -2
       objectReference: {fileID: 0}
     - target: {fileID: 3747777146717950885, guid: 4b96985b6de6e0241acaeece98689fa9, type: 3}
       propertyPath: m_LocalPosition.y
@@ -2589,7 +2467,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3747777146717950885, guid: 4b96985b6de6e0241acaeece98689fa9, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 4.55
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3747777146717950885, guid: 4b96985b6de6e0241acaeece98689fa9, type: 3}
       propertyPath: m_LocalRotation.w
@@ -2623,10 +2501,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: male_swordsman_02_blue
       objectReference: {fileID: 0}
-    - target: {fileID: 3747777146922317018, guid: 4b96985b6de6e0241acaeece98689fa9, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2100000, guid: 4a9d0ed93197f474088723d06d4e0194, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2707,7 +2581,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4676523738748503976, guid: f141649e75885ab429723517cd7afcd8, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -7.86
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 4676523738748503976, guid: f141649e75885ab429723517cd7afcd8, type: 3}
       propertyPath: m_LocalPosition.y
@@ -2715,7 +2589,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4676523738748503976, guid: f141649e75885ab429723517cd7afcd8, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 5.69
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4676523738748503976, guid: f141649e75885ab429723517cd7afcd8, type: 3}
       propertyPath: m_LocalRotation.w
@@ -2747,7 +2621,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4676523738748503982, guid: f141649e75885ab429723517cd7afcd8, type: 3}
       propertyPath: m_Name
-      value: male_swordsman_01_red
+      value: Player4
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -2764,7 +2638,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4884770922061884262, guid: e5c246663838d0542aa1a67e8c7216e6, type: 3}
       propertyPath: m_Name
-      value: male_swordsman_01_grey
+      value: Player1
       objectReference: {fileID: 0}
     - target: {fileID: 4884770922061884280, guid: e5c246663838d0542aa1a67e8c7216e6, type: 3}
       propertyPath: m_RootOrder
@@ -2930,7 +2804,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8832964881147904658, guid: c26e8c19d8cdac1479dfd6f1b18b3864, type: 3}
       propertyPath: m_Name
-      value: male_swordsman_01_blue
+      value: Player2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -2945,17 +2819,9 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 740571681075633498, guid: e84c5134ef62d4045a36bcf066d780e6, type: 3}
-      propertyPath: m_Controller
-      value: 
-      objectReference: {fileID: 9100000, guid: dc4c3fbb5dd1fea40b4baad92d130e47, type: 2}
-    - target: {fileID: 740571681075633498, guid: e84c5134ef62d4045a36bcf066d780e6, type: 3}
-      propertyPath: m_ApplyRootMotion
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 6335709793389878682, guid: e84c5134ef62d4045a36bcf066d780e6, type: 3}
       propertyPath: m_Name
-      value: male_swordsman_01_green
+      value: Player3
       objectReference: {fileID: 0}
     - target: {fileID: 6676347654513346336, guid: e84c5134ef62d4045a36bcf066d780e6, type: 3}
       propertyPath: m_RootOrder
