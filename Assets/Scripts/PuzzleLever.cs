@@ -1,72 +1,80 @@
 using UnityEngine;
+using Unity.Netcode;
 
-public class PuzzleLever : MonoBehaviour
+public class PuzzleLever : NetworkBehaviour, IInteractable
 {
     [Header("Lever Settings")]
     [SerializeField] private PuzzleManager puzzleManager;
     [SerializeField] private PuzzleManager.LeverType leverType;
 
-    [Header("Interaction")]
-    [SerializeField] private KeyCode interactKey = KeyCode.E;
-    [SerializeField] private GameObject promptTextObject;
-
-    [Header("Visual Lever Movement")]
-    [SerializeField] private Transform leverHandle;
-    [SerializeField] private Vector3 pulledRotation = new Vector3(-45f, 0f, 0f);
+    [Header("Prompt")]
+    [TextArea]
+    [SerializeField] private string promptText = "Press E to pull lever";
 
     [Header("Audio")]
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip pullSound;
     [SerializeField] private float pullVolume = 1f;
 
-    private bool playerInRange = false;
-    private bool hasBeenPulled = false;
-    private Quaternion startingRotation;
+    private NetworkVariable<bool> hasBeenPulled = new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
     private void Awake()
     {
         if (audioSource == null)
-        {
             audioSource = GetComponent<AudioSource>();
-        }
+
+        if (audioSource == null)
+            audioSource = GetComponentInChildren<AudioSource>(true);
     }
 
-    private void Start()
+    public string GetPromptText()
     {
-        if (leverHandle != null)
-        {
-            startingRotation = leverHandle.localRotation;
-        }
+        if (hasBeenPulled.Value)
+            return "";
 
-        if (promptTextObject != null)
-        {
-            promptTextObject.SetActive(false);
-        }
+        return promptText;
     }
 
-    private void Update()
+    public void Interact()
     {
-        if (playerInRange && !hasBeenPulled && Input.GetKeyDown(interactKey))
+        Debug.Log($"{name}: lever interact called. IsServer={IsServer}, IsSpawned={IsSpawned}");
+
+        if (hasBeenPulled.Value)
+            return;
+
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
         {
-            PullLever();
+            if (IsServer)
+                PullLeverServerSide();
+            else
+                PullLeverServerRpc();
+
+            return;
         }
+
+        PullLeverServerSide();
     }
 
-    private void PullLever()
+    [ServerRpc(RequireOwnership = false)]
+    private void PullLeverServerRpc()
     {
-        hasBeenPulled = true;
+        PullLeverServerSide();
+    }
 
-        if (promptTextObject != null)
-        {
-            promptTextObject.SetActive(false);
-        }
+    private void PullLeverServerSide()
+    {
+        if (hasBeenPulled.Value)
+            return;
 
-        if (leverHandle != null)
-        {
-            leverHandle.localRotation = Quaternion.Euler(pulledRotation);
-        }
+        hasBeenPulled.Value = true;
 
-        PlayLeverSound();
+        Debug.Log($"{name}: pulled lever type {leverType}");
+
+        PlayPullSoundClientRpc();
 
         if (puzzleManager != null)
         {
@@ -74,65 +82,24 @@ public class PuzzleLever : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("PuzzleManager is missing on " + gameObject.name);
+            Debug.LogWarning($"{name}: PuzzleManager is missing.");
         }
     }
 
-    private void PlayLeverSound()
+    public void ResetLeverState()
     {
-        if (audioSource == null)
-        {
-            Debug.LogWarning("No AudioSource assigned on " + gameObject.name);
+        if (!IsServer && NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
             return;
-        }
 
-        if (pullSound == null)
-        {
-            Debug.LogWarning("No pull sound assigned on " + gameObject.name);
+        hasBeenPulled.Value = false;
+    }
+
+    [ClientRpc]
+    private void PlayPullSoundClientRpc()
+    {
+        if (audioSource == null || pullSound == null)
             return;
-        }
 
         audioSource.PlayOneShot(pullSound, pullVolume);
-    }
-
-    public void ResetLever()
-    {
-        hasBeenPulled = false;
-
-        if (leverHandle != null)
-        {
-            leverHandle.localRotation = startingRotation;
-        }
-
-        if (playerInRange && promptTextObject != null)
-        {
-            promptTextObject.SetActive(true);
-        }
-    }
-
-    private void OnTriggerEnter(Collider other)
-    {
-        if (other.CompareTag("Player"))
-        {
-            playerInRange = true;
-
-            if (!hasBeenPulled && promptTextObject != null)
-            {
-                promptTextObject.SetActive(true);
-            }
-        }
-    }
-
-    private void OnTriggerExit(Collider other)
-    {
-        if (other.CompareTag("Player"))
-        {
-            playerInRange = false;
-
-            if (promptTextObject != null)
-            {
-                promptTextObject.SetActive(false);
-            }
-        }
     }
 }

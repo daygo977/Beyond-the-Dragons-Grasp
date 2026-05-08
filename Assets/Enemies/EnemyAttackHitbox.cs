@@ -18,9 +18,11 @@ public class EnemyAttackHitbox : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (hasHit) return;
+        if (hasHit)
+            return;
 
-        if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsServer)
+        // Only the server/host applies real damage.
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && !NetworkManager.Singleton.IsServer)
             return;
 
         Health playerHealth = other.GetComponent<Health>();
@@ -31,10 +33,15 @@ public class EnemyAttackHitbox : MonoBehaviour
         if (playerHealth == null)
             return;
 
+        if (playerHealth.IsDead)
+            return;
+
         hasHit = true;
 
         int finalDamage = sourceEnemy != null ? sourceEnemy.attackDamage : damage;
 
         playerHealth.TakeDamage(finalDamage);
+
+        Debug.Log($"{name} damaged {playerHealth.name} for {finalDamage}");
     }
 }

@@ -67,6 +67,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   damage: 10
+  sourceEnemy: {fileID: 0}
 --- !u!1 &7495466074894322088
 GameObject:
   m_ObjectHideFlags: 0
@@ -134,6 +135,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   damage: 10
+  sourceEnemy: {fileID: 0}
 --- !u!1 &9072752235282109941
 GameObject:
   m_ObjectHideFlags: 0
@@ -201,6 +203,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   damage: 10
+  sourceEnemy: {fileID: 0}
 --- !u!1001 &8352332202758968978
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -681,6 +684,9 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
       insertIndex: -1
+      addedObject: {fileID: -6162158314415899830}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 7285334987311923054}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
       insertIndex: -1
@@ -708,6 +714,31 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
   m_PrefabInstance: {fileID: 9203266294630589772}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &-6162158314415899830
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8320954735956138013}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  GlobalObjectIdHash: 246982562
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
 --- !u!114 &7285334987311923054
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -720,8 +751,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ae174fa011801848a8e992b06471c11, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
   maxHealth: 100
-  currentHealth: 0
+  currentHealth:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 100
+  isDead:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
 --- !u!114 &486122366762841715
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -735,6 +776,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   damage: 10
+  sourceEnemy: {fileID: 0}
 --- !u!114 &4378611871960441973
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -747,9 +789,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5623b7a94366a80428ca9a471aecb130, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
   player: {fileID: 0}
   detectionRange: 10
   attackRange: 1.72
+  targetRefreshRate: 0.25
   runSpeed: 3
   rotationSpeed: 8
   patrolWhenIdle: 1
@@ -783,6 +827,7 @@ MonoBehaviour:
   slash01Hitbox: {fileID: 7495466074894322088}
   slash02Hitbox: {fileID: 4022826365339890398}
   stabHitbox: {fileID: 9072752235282109941}
+  attackDamage: 10
   destroyAfterDeathDelay: 5
   fadeDuration: 2
   audioSource: {fileID: 5643916926776419975}

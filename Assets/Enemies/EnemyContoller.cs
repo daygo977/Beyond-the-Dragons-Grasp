@@ -2,7 +2,6 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 using Unity.Netcode;
-using Unity.Netcode.Components;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class EnemyController : NetworkBehaviour
@@ -12,7 +11,6 @@ public class EnemyController : NetworkBehaviour
     public float detectionRange = 10f;
     public float attackRange = 2f;
 
-    //Multiplayer edit
     [Header("Multiplayer Targeting")]
     public float targetRefreshRate = 0.25f;
 
@@ -46,6 +44,7 @@ public class EnemyController : NetworkBehaviour
     public float screamDuration = 2f;
     public float attackDuration = 1.2f;
     public float damageReactionDuration = 0.6f;
+    public float directDamageDelay = 0.35f;
 
     [Header("Animator Parameters")]
     public string movingBool = "IsMoving";
@@ -58,14 +57,14 @@ public class EnemyController : NetworkBehaviour
     public string damageTrigger = "TakeDamage";
     public string dieTrigger = "Die";
 
-    [Header("Attack Hitboxes")]
+    [Header("Attack Hitboxes - Optional Now")]
     public GameObject slash01Hitbox;
     public GameObject slash02Hitbox;
     public GameObject stabHitbox;
 
-    //Multiplayer edit
     [Header("Damage")]
     public int attackDamage = 10;
+    public float extraDamageReach = 0.75f;
 
     [Header("Death Fade")]
     public float destroyAfterDeathDelay = 5f;
@@ -103,29 +102,25 @@ public class EnemyController : NetworkBehaviour
     private float nextStuckCheckTime;
     private float stuckTimer;
 
-    //Multiplayer edit
-    private NetworkAnimator networkAnimator;
     private float nextTargetRefreshTime;
 
     private void Awake()
     {
-        animator = GetComponentInChildren<Animator>();
+        animator = GetComponentInChildren<Animator>(true);
         agent = GetComponent<NavMeshAgent>();
         characterController = GetComponent<CharacterController>();
-        networkAnimator = GetComponent<NetworkAnimator>();
-
-        AcquirePlayer();
 
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
 
+        if (audioSource == null)
+            audioSource = GetComponentInChildren<AudioSource>(true);
+
         ConfigureAgent();
         DisableAllHitboxes();
         ResetStuckCheck();
-        ConfigureAttackHitboxes();
     }
 
-    //Multiplayer new function
     public override void OnNetworkSpawn()
     {
         if (!IsServer)
@@ -138,6 +133,8 @@ public class EnemyController : NetworkBehaviour
         }
 
         AcquirePlayer();
+
+        Debug.Log($"{name} spawned on server. Enemy AI active.");
     }
 
     private void OnValidate()
@@ -149,22 +146,23 @@ public class EnemyController : NetworkBehaviour
         patrolPointReachDistance = Mathf.Max(0.05f, patrolPointReachDistance);
         patrolPointAttempts = Mathf.Max(1, patrolPointAttempts);
         patrolSampleDistance = Mathf.Max(0.1f, patrolSampleDistance);
-        minPatrolPointDistance = Mathf.Max(0f, minPatrolPointDistance);
-        minWallDistance = Mathf.Max(0f, minWallDistance);
+        minPatrolPointDistance = Mathf.Max(0f, minWallDistance);
         chaseRepathRate = Mathf.Max(0.05f, chaseRepathRate);
         stuckCheckInterval = Mathf.Max(0.1f, stuckCheckInterval);
         stuckDistance = Mathf.Max(0.001f, stuckDistance);
         stuckTime = Mathf.Max(stuckCheckInterval, stuckTime);
+        directDamageDelay = Mathf.Max(0f, directDamageDelay);
     }
 
     private void Update()
     {
-        if (!IsServer) return;
+        if (!IsServer)
+            return;
 
-        if (isDead) return;
+        if (isDead)
+            return;
 
         RefreshTarget();
-
         ConfigureAgent();
 
         if (isReacting)
@@ -188,7 +186,7 @@ public class EnemyController : NetworkBehaviour
         if (debugDetection && Time.time >= nextDebugTime)
         {
             nextDebugTime = Time.time + 0.5f;
-            Debug.Log($"{name} distance to player: {distanceToPlayer:F2}. Detection: {detectionRange:F2}. Attack: {attackRange:F2}. Detected: {hasDetectedPlayer}.");
+            Debug.Log($"{name} target={player.name}, distance={distanceToPlayer:F2}, detected={hasDetectedPlayer}, attackRange={attackRange}");
         }
 
         if (isActing)
@@ -236,19 +234,20 @@ public class EnemyController : NetworkBehaviour
 
     private void AcquirePlayer()
     {
-        GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
-        if (taggedPlayer != null)
+        Transform nearest = FindNearestPlayerWithinRange(detectionRange);
+
+        if (nearest != null)
         {
-            player = taggedPlayer.transform;
+            player = nearest;
             return;
         }
 
-        GameObject namedPlayer = GameObject.Find("Player");
-        if (namedPlayer != null)
-            player = namedPlayer.transform;
+        GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
+
+        if (taggedPlayer != null)
+            player = taggedPlayer.transform;
     }
 
-    //Multiplayer new function
     private void RefreshTarget()
     {
         if (Time.time < nextTargetRefreshTime)
@@ -261,19 +260,14 @@ public class EnemyController : NetworkBehaviour
 
         if (nearestPlayer != null)
         {
-            if (player != nearestPlayer && debugDetection)
-                Debug.Log($"{name} retargeted to {nearestPlayer.name}");
-
             player = nearestPlayer;
             return;
         }
 
+        player = null;
+
         if (hasDetectedPlayer)
         {
-            if (debugDetection)
-                Debug.Log($"{name} lost all players.");
-
-            player = null;
             hasDetectedPlayer = false;
             hasFinishedScream = false;
             hasPatrolPoint = false;
@@ -281,13 +275,8 @@ public class EnemyController : NetworkBehaviour
             if (!isActing && !isReacting)
                 StopAgent(true);
         }
-        else
-        {
-            player = null;
-        }
     }
 
-    //Multiplayer new function
     private Transform FindNearestPlayerWithinRange(float maxRange)
     {
         Transform nearest = null;
@@ -303,6 +292,7 @@ public class EnemyController : NetworkBehaviour
                 Transform candidate = client.PlayerObject.transform;
 
                 Health health = candidate.GetComponent<Health>();
+
                 if (health != null && health.IsDead)
                     continue;
 
@@ -323,6 +313,11 @@ public class EnemyController : NetworkBehaviour
 
         foreach (GameObject playerObject in taggedPlayers)
         {
+            Health health = playerObject.GetComponent<Health>();
+
+            if (health != null && health.IsDead)
+                continue;
+
             float distanceSquared = GetDistanceSquaredTo(playerObject.transform);
 
             if (distanceSquared <= nearestDistanceSquared)
@@ -335,7 +330,6 @@ public class EnemyController : NetworkBehaviour
         return nearest;
     }
 
-    //Multiplayer new function
     private float GetDistanceSquaredTo(Transform target)
     {
         if (target == null)
@@ -356,14 +350,15 @@ public class EnemyController : NetworkBehaviour
     private float GetDistanceToPlayer()
     {
         if (player == null)
-        return Mathf.Infinity;
+            return Mathf.Infinity;
 
         return Mathf.Sqrt(GetDistanceSquaredTo(player));
     }
 
     private void ConfigureAgent()
     {
-        if (agent == null) return;
+        if (agent == null)
+            return;
 
         agent.speed = runSpeed;
         agent.stoppingDistance = Mathf.Max(0.1f, attackRange * 0.85f);
@@ -377,7 +372,8 @@ public class EnemyController : NetworkBehaviour
 
     private void StopAgent(bool clearPath)
     {
-        if (!CanUseAgent()) return;
+        if (!CanUseAgent())
+            return;
 
         agent.isStopped = true;
         agent.velocity = Vector3.zero;
@@ -446,6 +442,7 @@ public class EnemyController : NetworkBehaviour
             }
 
             Vector3 lookPoint = agent.steeringTarget;
+
             if (lookPoint == Vector3.zero && player != null)
                 lookPoint = player.position;
 
@@ -464,6 +461,7 @@ public class EnemyController : NetworkBehaviour
             return;
 
         RotateTowards(player.position);
+
         Vector3 move = direction.normalized * runSpeed * Time.deltaTime;
 
         if (characterController != null)
@@ -480,6 +478,7 @@ public class EnemyController : NetworkBehaviour
         if (NavMesh.SamplePosition(player.position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
         {
             NavMeshPath path = new NavMeshPath();
+
             if (agent.CalculatePath(hit.position, path) && path.status == NavMeshPathStatus.PathComplete)
             {
                 agent.SetDestination(hit.position);
@@ -528,15 +527,14 @@ public class EnemyController : NetworkBehaviour
             agent.SetDestination(currentPatrolPoint);
 
         Vector3 lookPoint = agent.steeringTarget;
+
         if (lookPoint != Vector3.zero)
             RotateTowards(lookPoint);
 
         MonitorStuck(true);
 
         if (!agent.pathPending && agent.remainingDistance <= patrolPointReachDistance)
-        {
             ClearPatrolPointAndWait();
-        }
     }
 
     private bool TryFindPatrolPoint()
@@ -559,6 +557,7 @@ public class EnemyController : NetworkBehaviour
                 continue;
 
             NavMeshPath path = new NavMeshPath();
+
             if (!agent.CalculatePath(hit.position, path) || path.status != NavMeshPathStatus.PathComplete)
                 continue;
 
@@ -569,7 +568,7 @@ public class EnemyController : NetworkBehaviour
         }
 
         if (debugNavMesh)
-            Debug.LogWarning($"{name} could not find a safe patrol point. Try increasing Patrol Radius/Sample Distance or rebaking the NavMesh.");
+            Debug.LogWarning($"{name} could not find a safe patrol point.");
 
         return false;
     }
@@ -608,8 +607,10 @@ public class EnemyController : NetworkBehaviour
         StopAgent(true);
         SetMovementAnimation(false, false);
 
-        if (player != null)
-            RotateTowards(player.position);
+        Transform attackTarget = player;
+
+        if (attackTarget != null)
+            RotateTowards(attackTarget.position);
 
         int attackChoice = Random.Range(0, 3);
         PlayRandomSound(swingClips, swingVolume);
@@ -621,16 +622,60 @@ public class EnemyController : NetworkBehaviour
         else
             SetAnimatorTrigger(stabTrigger);
 
-        yield return new WaitForSeconds(attackDuration);
+        yield return new WaitForSeconds(directDamageDelay);
+
+        TryDamageCurrentTarget(attackTarget);
+
+        yield return new WaitForSeconds(Mathf.Max(0f, attackDuration - directDamageDelay));
 
         DisableAllHitboxes();
+
         isActing = false;
         actionCoroutine = null;
     }
 
+    private void TryDamageCurrentTarget(Transform target)
+    {
+        if (!IsServer)
+            return;
+
+        if (target == null)
+        {
+            Debug.LogWarning($"{name} attack failed: target was null.");
+            return;
+        }
+
+        float distance = Vector3.Distance(transform.position, target.position);
+
+        if (distance > attackRange + extraDamageReach)
+        {
+            Debug.Log($"{name} attack missed. Distance={distance:F2}, allowed={(attackRange + extraDamageReach):F2}");
+            return;
+        }
+
+        Health health = target.GetComponent<Health>();
+
+        if (health == null)
+            health = target.GetComponentInParent<Health>();
+
+        if (health == null)
+        {
+            Debug.LogWarning($"{name} tried to damage {target.name}, but no Health component was found.");
+            return;
+        }
+
+        if (health.IsDead)
+            return;
+
+        health.TakeDamage(attackDamage);
+
+        Debug.Log($"{name} directly damaged {health.name} for {attackDamage}. New health={health.CurrentHealth}");
+    }
+
     public void TakeDamageReaction()
     {
-        if (isDead) return;
+        if (isDead)
+            return;
 
         if (damageCoroutine != null)
             StopCoroutine(damageCoroutine);
@@ -660,10 +705,12 @@ public class EnemyController : NetworkBehaviour
 
     public void Die()
     {
-        if (isDead) return;
+        if (isDead)
+            return;
 
         isDead = true;
         isReacting = false;
+
         CancelCurrentAction();
 
         if (damageCoroutine != null)
@@ -673,10 +720,12 @@ public class EnemyController : NetworkBehaviour
         }
 
         StopAgent(true);
+
         if (agent != null)
             agent.enabled = false;
 
         DisableAllHitboxes();
+
         SetMovementAnimation(false, false);
         SetAnimatorBool(deadBool, true);
         SetAnimatorTrigger(dieTrigger);
@@ -690,7 +739,7 @@ public class EnemyController : NetworkBehaviour
     {
         yield return new WaitForSeconds(destroyAfterDeathDelay);
 
-        Renderer[] renderers = GetComponentsInChildren<Renderer>();
+        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
         float timer = 0f;
 
         while (timer < fadeDuration)
@@ -714,7 +763,6 @@ public class EnemyController : NetworkBehaviour
             yield return null;
         }
 
-        //Multiplayer edit
         if (IsServer && NetworkObject != null && NetworkObject.IsSpawned)
             NetworkObject.Despawn(true);
         else
@@ -801,11 +849,27 @@ public class EnemyController : NetworkBehaviour
 
     private void SetAnimatorBool(string parameterName, bool value)
     {
-        if (HasAnimatorParameter(parameterName, AnimatorControllerParameterType.Bool))
-            animator.SetBool(parameterName, value);
+        if (!HasAnimatorParameter(parameterName, AnimatorControllerParameterType.Bool))
+            return;
+
+        animator.SetBool(parameterName, value);
+
+        if (IsServer && IsSpawned)
+            SetAnimatorBoolClientRpc(parameterName, value);
     }
 
-    //Multiplayer edit, new logic
+    [ClientRpc]
+    private void SetAnimatorBoolClientRpc(string parameterName, bool value)
+    {
+        if (IsServer)
+            return;
+
+        if (!HasAnimatorParameter(parameterName, AnimatorControllerParameterType.Bool))
+            return;
+
+        animator.SetBool(parameterName, value);
+    }
+
     private void SetAnimatorTrigger(string parameterName)
     {
         if (!HasAnimatorParameter(parameterName, AnimatorControllerParameterType.Trigger))
@@ -816,10 +880,22 @@ public class EnemyController : NetworkBehaviour
             return;
         }
 
-        if (networkAnimator != null && IsSpawned)
-            networkAnimator.SetTrigger(parameterName);
-        else if (animator != null)
-            animator.SetTrigger(parameterName);
+        animator.SetTrigger(parameterName);
+
+        if (IsServer && IsSpawned)
+            SetAnimatorTriggerClientRpc(parameterName);
+    }
+
+    [ClientRpc]
+    private void SetAnimatorTriggerClientRpc(string parameterName)
+    {
+        if (IsServer)
+            return;
+
+        if (!HasAnimatorParameter(parameterName, AnimatorControllerParameterType.Trigger))
+            return;
+
+        animator.SetTrigger(parameterName);
     }
 
     private void DisableAllHitboxes()
@@ -834,46 +910,20 @@ public class EnemyController : NetworkBehaviour
             stabHitbox.SetActive(false);
     }
 
-    //Multiplayer new function
-    private void ConfigureAttackHitboxes()
-    {
-        ConfigureAttackHitbox(slash01Hitbox);
-        ConfigureAttackHitbox(slash02Hitbox);
-        ConfigureAttackHitbox(stabHitbox);
-    }
-
-    //Multiplayer new function
-    private void ConfigureAttackHitbox(GameObject hitboxObject)
-    {
-        if (hitboxObject == null)
-            return;
-
-        EnemyAttackHitbox hitbox = hitboxObject.GetComponent<EnemyAttackHitbox>();
-
-        if (hitbox != null)
-            hitbox.sourceEnemy = this;
-    }
-
     public void EnableSlash01Hitbox()
     {
-        DisableAllHitboxes();
-
         if (slash01Hitbox != null)
             slash01Hitbox.SetActive(true);
     }
 
     public void EnableSlash02Hitbox()
     {
-        DisableAllHitboxes();
-
         if (slash02Hitbox != null)
             slash02Hitbox.SetActive(true);
     }
 
     public void EnableStabHitbox()
     {
-        DisableAllHitboxes();
-
         if (stabHitbox != null)
             stabHitbox.SetActive(true);
     }
@@ -885,17 +935,22 @@ public class EnemyController : NetworkBehaviour
 
     private void PlayRandomSound(AudioClip[] clips, float volume = 1f)
     {
-        if (audioSource == null) return;
-        if (clips == null || clips.Length == 0) return;
+        if (audioSource == null)
+            return;
+
+        if (clips == null || clips.Length == 0)
+            return;
 
         AudioClip clip = clips[Random.Range(0, clips.Length)];
-        if (clip == null) return;
+
+        if (clip == null)
+            return;
 
         audioSource.pitch = Random.Range(0.9f, 1.1f);
         audioSource.PlayOneShot(clip, volume);
     }
 
-    private void OnDrawGizmos()
+    private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, detectionRange);

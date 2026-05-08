@@ -120,6 +120,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   damage: 10
+  sourceEnemy: {fileID: 0}
 --- !u!1 &7962922697346127341
 GameObject:
   m_ObjectHideFlags: 0
@@ -325,6 +326,9 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
       insertIndex: -1
+      addedObject: {fileID: -5715778270674932970}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 1715105887577434538}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
       insertIndex: -1
@@ -335,6 +339,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4147217808105439448}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4376379491443677944}
   m_SourcePrefab: {fileID: 100100000, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
 --- !u!4 &3488754952806295421 stripped
 Transform:
@@ -346,6 +353,31 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}
   m_PrefabInstance: {fileID: 7618275732302352404}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &-5715778270674932970
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7311845489745423685}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  GlobalObjectIdHash: 3526228449
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
 --- !u!114 &1715105887577434538
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -358,8 +390,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ae174fa011801848a8e992b06471c11, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
   maxHealth: 100
-  currentHealth: 0
+  currentHealth:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 100
+  isDead:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
 --- !u!114 &7057866313122326155
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -373,6 +415,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   damage: 10
+  sourceEnemy: {fileID: 0}
 --- !u!114 &8959693723646814561
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -385,19 +428,54 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5623b7a94366a80428ca9a471aecb130, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
   player: {fileID: 0}
   detectionRange: 10
   attackRange: 1.72
+  targetRefreshRate: 0.25
   runSpeed: 3
   rotationSpeed: 8
+  patrolWhenIdle: 1
+  patrolRadius: 10
+  patrolPointReachDistance: 1
+  patrolWaitTime: 1
+  patrolPointAttempts: 20
+  ignoreHeightForDetection: 1
+  loseInterestRange: 18
+  debugDetection: 0
+  patrolSampleDistance: 4
+  minPatrolPointDistance: 2
+  minWallDistance: 0.7
+  chaseRepathRate: 0.2
+  stuckCheckInterval: 0.5
+  stuckDistance: 0.05
+  stuckTime: 1.5
+  debugNavMesh: 0
   screamDuration: 2
   attackDuration: 1.2
   damageReactionDuration: 0.6
+  movingBool: IsMoving
+  runningBool: IsRunning
+  deadBool: IsDead
+  screamTrigger: Scream
+  slash01Trigger: Slash01
+  slash02Trigger: Slash02
+  stabTrigger: Stab
+  damageTrigger: TakeDamage
+  dieTrigger: Die
   slash01Hitbox: {fileID: 6415000344429060598}
   slash02Hitbox: {fileID: 7962922697346127341}
   stabHitbox: {fileID: 3185479376304620338}
+  attackDamage: 10
   destroyAfterDeathDelay: 5
   fadeDuration: 2
+  audioSource: {fileID: 0}
+  deathClips: []
+  roarClips: []
+  swingClips: []
+  deathVolume: 1
+  roarVolume: 1
+  swingVolume: 1
 --- !u!136 &4147217808105439448
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -421,6 +499,28 @@ CapsuleCollider:
   m_Height: 1.6577462
   m_Direction: 1
   m_Center: {x: 0, y: 0.8955501, z: 0}
+--- !u!195 &4376379491443677944
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7311845489745423685}
+  m_Enabled: 1
+  m_AgentTypeID: 0
+  m_Radius: 0.5
+  m_Speed: 3.5
+  m_Acceleration: 8
+  avoidancePriority: 50
+  m_AngularSpeed: 120
+  m_StoppingDistance: 0
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 2
+  m_BaseOffset: 0
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 4
 --- !u!4 &7940747842285549567 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: be3776e9bd6e31341b3490a035f6ea50, type: 3}

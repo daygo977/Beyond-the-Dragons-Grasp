@@ -15,16 +15,17 @@ public class KeyPickup : NetworkBehaviour, IInteractable
     public AudioClip pickupSound;
     [Range(0f, 1f)] public float pickupVolume = 1f;
 
-    [Header("Pickup")]
-    public float disableDelay = 1f;
-
     private NetworkVariable<bool> pickedUp = new NetworkVariable<bool>(
         false,
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
     );
 
-    private bool pickedUpLocal;
+    private NetworkVariable<bool> isAvailable = new NetworkVariable<bool>(
+        true,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
     private void Awake()
     {
@@ -34,28 +35,29 @@ public class KeyPickup : NetworkBehaviour, IInteractable
 
     public override void OnNetworkSpawn()
     {
-        pickedUp.OnValueChanged += OnPickedUpChanged;
-        ApplyPickupVisualState();
+        pickedUp.OnValueChanged += OnStateChanged;
+        isAvailable.OnValueChanged += OnStateChanged;
+
+        ApplyVisualState();
     }
 
     public override void OnNetworkDespawn()
     {
-        pickedUp.OnValueChanged -= OnPickedUpChanged;
+        pickedUp.OnValueChanged -= OnStateChanged;
+        isAvailable.OnValueChanged -= OnStateChanged;
     }
 
-    private void OnPickedUpChanged(bool oldValue, bool newValue)
+    private void OnStateChanged(bool oldValue, bool newValue)
     {
-        ApplyPickupVisualState();
+        ApplyVisualState();
 
-        if (newValue)
+        if (pickedUp.Value)
             PlayPickupSoundLocal();
     }
 
     public string GetPromptText()
     {
-        bool isPickedUp = IsSpawned ? pickedUp.Value : pickedUpLocal;
-
-        if (isPickedUp)
+        if (!isAvailable.Value || pickedUp.Value)
             return "";
 
         return promptText;
@@ -63,46 +65,45 @@ public class KeyPickup : NetworkBehaviour, IInteractable
 
     public void Interact()
     {
-        if (!IsSpawned)
-        {
-            if (pickedUpLocal) return;
-
-            pickedUpLocal = true;
-
-            if (GameFlags.Instance != null)
-                GameFlags.Instance.AddKey(keyId);
-
-            ApplyPickupVisualStateLocal(false);
-            PlayPickupSoundLocal();
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && !IsServer)
             return;
-        }
 
-        if (!IsServer) return;
-        if (pickedUp.Value) return;
+        if (!isAvailable.Value || pickedUp.Value)
+            return;
 
         pickedUp.Value = true;
+        isAvailable.Value = false;
 
         if (GameFlags.Instance != null)
             GameFlags.Instance.AddKey(keyId);
     }
 
-    private void ApplyPickupVisualState()
+    public void SetAvailable(bool available)
     {
-        bool visible = !pickedUp.Value;
-        ApplyPickupVisualStateLocal(visible);
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && !IsServer)
+            return;
+
+        if (pickedUp.Value)
+        {
+            isAvailable.Value = false;
+            return;
+        }
+
+        isAvailable.Value = available;
+        ApplyVisualState();
     }
 
-    private void ApplyPickupVisualStateLocal(bool visible)
+    private void ApplyVisualState()
     {
-        Collider[] colliders = GetComponentsInChildren<Collider>(true);
-
-        foreach (Collider col in colliders)
-            col.enabled = visible;
+        bool visible = isAvailable.Value && !pickedUp.Value;
 
         Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
-
         foreach (Renderer rend in renderers)
             rend.enabled = visible;
+
+        Collider[] colliders = GetComponentsInChildren<Collider>(true);
+        foreach (Collider col in colliders)
+            col.enabled = visible;
     }
 
     private void PlayPickupSoundLocal()

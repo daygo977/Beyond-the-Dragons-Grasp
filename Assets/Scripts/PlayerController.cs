@@ -46,6 +46,7 @@ public class PlayerController : NetworkBehaviour
     public float interactDistance = 3f;
     public LayerMask interactLayer;
     public TextMeshProUGUI interactText;
+    public string sceneInteractTextObjectName = "Interact Text";
 
     IInteractable currentInteractable;
     IHoldInteractable currentHoldInteractable;
@@ -107,9 +108,6 @@ public class PlayerController : NetworkBehaviour
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-
-        if (interactText != null)
-            interactText.text = "";
     }
 
     bool HasControl()
@@ -131,6 +129,11 @@ public class PlayerController : NetworkBehaviour
 
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+
+            FindSceneInteractText();
+
+            if (interactText != null)
+                interactText.text = "";
         }
         else
         {
@@ -153,6 +156,7 @@ public class PlayerController : NetworkBehaviour
     {
         if (!HasControl()) return;
 
+        FindSceneInteractText();
         RefreshThirdPersonAnimator();
 
         if (controller == null)
@@ -191,6 +195,25 @@ public class PlayerController : NetworkBehaviour
         HandleInteractionInput();
 
         SetAnimations();
+    }
+
+    void FindSceneInteractText()
+    {
+        if (interactText != null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(sceneInteractTextObjectName))
+            return;
+
+        GameObject textObject = GameObject.Find(sceneInteractTextObjectName);
+
+        if (textObject == null)
+            return;
+
+        interactText = textObject.GetComponent<TextMeshProUGUI>();
+
+        if (interactText != null)
+            interactText.text = "";
     }
 
     void MoveInput(Vector2 inputValue)
@@ -305,7 +328,7 @@ public class PlayerController : NetworkBehaviour
         {
             MonoBehaviour[] behaviours = hit.collider.GetComponents<MonoBehaviour>();
 
-            foreach (var behaviour in behaviours)
+            foreach (MonoBehaviour behaviour in behaviours)
             {
                 if (behaviour is IInteractable interactable)
                 {
@@ -414,6 +437,14 @@ public class PlayerController : NetworkBehaviour
             }
 
             door.Interact();
+            return;
+        }
+
+        EscapeDoorInteractable escapeDoor = netObject.GetComponentInChildren<EscapeDoorInteractable>();
+
+        if (escapeDoor != null)
+        {
+            escapeDoor.Interact();
             return;
         }
 
@@ -572,7 +603,7 @@ public class PlayerController : NetworkBehaviour
             enemyHealth = hit.transform.GetComponentInParent<EnemyHealth>();
 
         if (enemyHealth != null)
-            enemyHealth.TakeDamage(attackDamage);
+            enemyHealth.RequestTakeDamage(attackDamage);
     }
 
     void HitTarget(Vector3 pos)

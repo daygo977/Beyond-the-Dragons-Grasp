@@ -1,23 +1,37 @@
 using UnityEngine;
+using Unity.Netcode;
 
 public class EscapeZoneTrigger : MonoBehaviour
 {
+    [Header("References")]
     public EscapeDoorInteractable escapeDoor;
+
+    [Header("Detection")]
     public string playerTag = "Player";
 
-    void OnTriggerEnter(Collider other)
+    private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag(playerTag)) return;
+        if (!other.CompareTag(playerTag))
+            return;
 
-        if (escapeDoor != null)
-            escapeDoor.SetPlayerInEscapeZone(true);
+        NetworkObject playerNetworkObject = other.GetComponentInParent<NetworkObject>();
+
+        if (escapeDoor != null && playerNetworkObject != null)
+        {
+            escapeDoor.SetPlayerInEscapeZone(playerNetworkObject.OwnerClientId, true);
+        }
     }
 
-    void OnTriggerExit(Collider other)
+    private void OnTriggerExit(Collider other)
     {
-        if (!other.CompareTag(playerTag)) return;
+        if (!other.CompareTag(playerTag))
+            return;
 
-        if (escapeDoor != null)
-            escapeDoor.SetPlayerInEscapeZone(false);
+        NetworkObject playerNetworkObject = other.GetComponentInParent<NetworkObject>();
+
+        if (escapeDoor != null && playerNetworkObject != null)
+        {
+            escapeDoor.SetPlayerInEscapeZone(playerNetworkObject.OwnerClientId, false);
+        }
     }
 }

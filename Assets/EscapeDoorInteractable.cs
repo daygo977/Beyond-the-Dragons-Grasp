@@ -1,19 +1,21 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
 using UnityEngine.UI;
+using Unity.Netcode;
 
-public class EscapeDoorInteractable : MonoBehaviour, IInteractable
+public class EscapeDoorInteractable : NetworkBehaviour, IInteractable
 {
     [Header("Prompt Text")]
     [TextArea]
     public string escapePrompt = "Press E to escape!";
 
     [TextArea]
-    public string notReadyPrompt = "You need to be near the door.";
+    public string notReadyPrompt = "All alive players need to be near the door.";
 
-    [Header("Local Escape Check")]
-    public bool playerIsInEscapeZone;
+    [Header("Prompt Timing")]
+    public float temporaryPromptDuration = 2f;
 
     [Header("Escape UI")]
     public GameObject escapePanel;
@@ -31,10 +33,13 @@ public class EscapeDoorInteractable : MonoBehaviour, IInteractable
     public AudioClip escapeSound;
     [Range(0f, 1f)] public float escapeVolume = 1f;
 
-    private bool escaped;
-    private PlayerController playerController;
+    private readonly HashSet<ulong> playersInZone = new HashSet<ulong>();
 
-    void Start()
+    private bool escaped;
+    private string temporaryPrompt = "";
+    private float temporaryPromptTimer;
+
+    private void Start()
     {
         if (escapePanel != null)
             escapePanel.SetActive(false);
@@ -49,10 +54,23 @@ public class EscapeDoorInteractable : MonoBehaviour, IInteractable
             audioSource = GetComponent<AudioSource>();
     }
 
-    void OnDestroy()
+    private void Update()
+    {
+        if (temporaryPromptTimer > 0f)
+        {
+            temporaryPromptTimer -= Time.deltaTime;
+
+            if (temporaryPromptTimer <= 0f)
+                temporaryPrompt = "";
+        }
+    }
+
+    public override void OnDestroy()
     {
         if (mainMenuButton != null)
             mainMenuButton.onClick.RemoveListener(ReturnToMainMenu);
+
+        base.OnDestroy();
     }
 
     public string GetPromptText()
@@ -60,7 +78,10 @@ public class EscapeDoorInteractable : MonoBehaviour, IInteractable
         if (escaped)
             return "";
 
-        if (playerIsInEscapeZone)
+        if (!string.IsNullOrEmpty(temporaryPrompt))
+            return temporaryPrompt;
+
+        if (IsLocalPlayerInZone())
             return escapePrompt;
 
         return notReadyPrompt;
@@ -68,29 +89,116 @@ public class EscapeDoorInteractable : MonoBehaviour, IInteractable
 
     public void Interact()
     {
-        if (escaped) return;
-
-        if (!playerIsInEscapeZone)
+        if (escaped)
             return;
 
-        TriggerEscape();
+        if (!IsSpawned)
+        {
+            if (IsLocalPlayerInZone())
+                TriggerEscapeLocal();
+            else
+                ShowTemporaryPromptLocal(notReadyPrompt);
+
+            return;
+        }
+
+        RequestEscapeServerRpc();
     }
 
-    public void SetPlayerInEscapeZone(bool inside)
+    public void SetPlayerInEscapeZone(ulong clientId, bool inside)
     {
-        playerIsInEscapeZone = inside;
+        if (inside)
+            playersInZone.Add(clientId);
+        else
+            playersInZone.Remove(clientId);
     }
 
-    void TriggerEscape()
+    private bool IsLocalPlayerInZone()
+    {
+        if (!IsSpawned || NetworkManager.Singleton == null)
+            return true;
+
+        return playersInZone.Contains(NetworkManager.Singleton.LocalClientId);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void RequestEscapeServerRpc(ServerRpcParams rpcParams = default)
+    {
+        if (escaped)
+            return;
+
+        ulong requestingClientId = rpcParams.Receive.SenderClientId;
+
+        if (!playersInZone.Contains(requestingClientId))
+        {
+            SendNotReadyPromptClientRpc(requestingClientId);
+            return;
+        }
+
+        if (!AllAlivePlayersInZone())
+        {
+            SendNotReadyPromptClientRpc(requestingClientId);
+            return;
+        }
+
+        escaped = true;
+        TriggerEscapeClientRpc();
+    }
+
+    private bool AllAlivePlayersInZone()
+    {
+        if (NetworkManager.Singleton == null)
+            return true;
+
+        foreach (NetworkClient client in NetworkManager.Singleton.ConnectedClientsList)
+        {
+            if (client.PlayerObject == null)
+                continue;
+
+            Health health = client.PlayerObject.GetComponent<Health>();
+
+            if (health != null && health.IsDead)
+                continue;
+
+            if (!playersInZone.Contains(client.ClientId))
+                return false;
+        }
+
+        return true;
+    }
+
+    [ClientRpc]
+    private void TriggerEscapeClientRpc()
+    {
+        TriggerEscapeLocal();
+    }
+
+    [ClientRpc]
+    private void SendNotReadyPromptClientRpc(ulong targetClientId)
+    {
+        if (NetworkManager.Singleton == null)
+            return;
+
+        if (NetworkManager.Singleton.LocalClientId != targetClientId)
+            return;
+
+        ShowTemporaryPromptLocal(notReadyPrompt);
+    }
+
+    private void ShowTemporaryPromptLocal(string message)
+    {
+        temporaryPrompt = message;
+        temporaryPromptTimer = temporaryPromptDuration;
+    }
+
+    private void TriggerEscapeLocal()
     {
         escaped = true;
 
-        playerController = Object.FindFirstObjectByType<PlayerController>();
+        PlayerController localPlayerController = GetLocalPlayerController();
 
-        if (playerController != null)
-            playerController.enabled = false;
-
-        Time.timeScale = 0f;
+        if (localPlayerController != null)
+            localPlayerController.enabled = false;
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -110,12 +218,22 @@ public class EscapeDoorInteractable : MonoBehaviour, IInteractable
         }
     }
 
+    private PlayerController GetLocalPlayerController()
+    {
+        if (NetworkManager.Singleton != null &&
+            NetworkManager.Singleton.LocalClient != null &&
+            NetworkManager.Singleton.LocalClient.PlayerObject != null)
+        {
+            return NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<PlayerController>();
+        }
+
+        return Object.FindFirstObjectByType<PlayerController>();
+    }
+
     public void ReturnToMainMenu()
     {
-        Time.timeScale = 1f;
-
-        if (playerController != null)
-            playerController.enabled = true;
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            NetworkManager.Singleton.Shutdown();
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
