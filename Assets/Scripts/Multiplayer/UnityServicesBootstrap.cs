@@ -41,14 +41,6 @@ public class UnityServicesBootstrap : MonoBehaviour
         {
             await UnityServices.InitializeAsync();
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (AuthenticationService.Instance.SessionTokenExists)
-            {
-                AuthenticationService.Instance.ClearSessionToken();
-                Debug.Log("Cleared cached Unity Authentication session token for local multiplayer testing.");
-            }
-#endif            
-
             if (!AuthenticationService.Instance.IsSignedIn)
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
 
